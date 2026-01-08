@@ -3,6 +3,7 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -14,6 +15,11 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "#constants/*": ["./src/common/constants/*"],
+      "#interfaces/*": ["./src/common/interfaces/*"],
+      "#utils/*": ["./src/common/utils/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
