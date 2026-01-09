@@ -103,6 +103,9 @@ export default function ConnectionScreen() {
             placeholderTextColor="#999"
             value={serverIp}
             onChangeText={setServerIp}
+            returnKeyType="next"
+            onSubmitEditing={handleConnect}
+            keyboardType="numeric"
           />
         </View>
 
@@ -114,6 +117,9 @@ export default function ConnectionScreen() {
             placeholderTextColor="#999"
             value={port}
             onChangeText={setPort}
+            returnKeyType="go"
+            onSubmitEditing={handleConnect}
+            keyboardType="numeric"
           />
         </View>
 

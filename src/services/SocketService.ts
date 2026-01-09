@@ -38,19 +38,22 @@ class SocketService {
 
     // 연결 성공
     this.socket.on('connect', () => {
-      console.log('Socket 연결 성공:', this.socket?.id);
+      console.log('✅ Socket 연결 성공:', this.socket?.id);
       this.notifyStatusChange('connected');
+
+      // 기존에 등록된 리스너들을 새 소켓에 다시 등록
+      this.reattachListeners();
     });
 
     // 연결 해제
     this.socket.on('disconnect', (reason) => {
-      console.log('Socket 연결 해제:', reason);
+      console.log('❌ Socket 연결 해제:', reason);
       this.notifyStatusChange('disconnected');
     });
 
     // 연결 에러
     this.socket.on('connect_error', (error) => {
-      console.error('Socket 연결 에러:', error.message);
+      console.error('❌ Socket 연결 에러:', error.message);
       this.notifyStatusChange('error');
     });
   }
@@ -78,23 +81,35 @@ class SocketService {
    */
   emit(event: string, data?: unknown): void {
     if (this.socket?.connected) {
+      console.log(`📤 emit: ${event}`, data);
       this.socket.emit(event, data);
     } else {
-      console.warn('Socket이 연결되지 않음');
+      console.warn('⚠️ Socket이 연결되지 않음, emit 실패:', event);
     }
   }
 
   /**
-   * 이벤트 리스너 등록
+   * 이벤트 리스너 등록 (제네릭 타입 지원)
+   * @returns unsubscribe 함수
    */
-  on(event: string, listener: MessageListener): void {
+  on<T = unknown>(event: string, listener: (data: T) => void): () => void {
     if (!this.messageListeners.has(event)) {
       this.messageListeners.set(event, []);
     }
-    this.messageListeners.get(event)!.push(listener);
+    this.messageListeners.get(event)!.push(listener as MessageListener);
 
     // 실제 소켓에도 리스너 등록
-    this.socket?.on(event, listener);
+    if (this.socket) {
+      this.socket.on(event, listener as MessageListener);
+      console.log(`✅ 리스너 등록됨: ${event} (소켓 연결됨)`);
+    } else {
+      console.log(`⏳ 리스너 저장됨: ${event} (소켓 연결 대기 중)`);
+    }
+
+    // 해제 함수 반환
+    return () => {
+      this.off(event, listener as MessageListener);
+    };
   }
 
   /**
@@ -131,6 +146,29 @@ class SocketService {
    */
   private notifyStatusChange(status: ConnectionStatus): void {
     this.statusListeners.forEach(listener => listener(status));
+  }
+
+  /**
+   * 기존 리스너들을 새 소켓에 다시 등록
+   * (재연결 시 리스너 유지용)
+   */
+  private reattachListeners(): void {
+    if (!this.socket) {
+      console.log('⚠️ reattachListeners: 소켓이 없음');
+      return;
+    }
+
+    const events = Array.from(this.messageListeners.keys());
+    console.log('🔄 reattachListeners 시작, 등록된 이벤트:', events);
+
+    this.messageListeners.forEach((listeners, event) => {
+      console.log(`  - ${event}: ${listeners.length}개 리스너`);
+      listeners.forEach((listener) => {
+        this.socket?.on(event, listener);
+      });
+    });
+
+    console.log('✅ 리스너 재등록 완료');
   }
 
   /**
