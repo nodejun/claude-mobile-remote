@@ -15,6 +15,7 @@ import {
   FilesScreen,
   SettingsScreen,
 } from '../screens';
+import { useConnection } from '../hooks';
 
 // 네비게이터 생성
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,7 +43,7 @@ function MainTabs() {
         component={ChatScreen}
         options={{
           tabBarLabel: '채팅',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: () => (
             <Text style={{ fontSize: 20 }}>💬</Text>
           ),
         }}
@@ -52,7 +53,7 @@ function MainTabs() {
         component={FilesScreen}
         options={{
           tabBarLabel: '파일',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: () => (
             <Text style={{ fontSize: 20 }}>📁</Text>
           ),
         }}
@@ -62,7 +63,7 @@ function MainTabs() {
         component={SettingsScreen}
         options={{
           tabBarLabel: '설정',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: () => (
             <Text style={{ fontSize: 20 }}>⚙️</Text>
           ),
         }}
@@ -75,19 +76,27 @@ function MainTabs() {
  * 루트 스택 네비게이터
  * 연결 상태에 따라 화면 전환
  */
-export default function AppNavigator() {
-  // TODO: 실제 연결 상태 관리는 나중에 구현
-  const isConnected = false;
+function RootNavigator() {
+  const { isConnected } = useConnection();
 
   return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isConnected ? (
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+      ) : (
+        <Stack.Screen name="Connection" component={ConnectionScreen} />
+      )}
+    </Stack.Navigator>
+  );
+}
+
+/**
+ * 앱 네비게이터 (최상위)
+ */
+export default function AppNavigator() {
+  return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isConnected ? (
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-        ) : (
-          <Stack.Screen name="Connection" component={ConnectionScreen} />
-        )}
-      </Stack.Navigator>
+      <RootNavigator />
     </NavigationContainer>
   );
 }
