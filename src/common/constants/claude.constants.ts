@@ -11,6 +11,7 @@ export const CLAUDE_CLI_CONFIG = {
     '--dangerously-skip-permissions', // 권한 체크 우회
     '--output-format',
     'stream-json', // JSON 스트리밍 출력
+    '--include-partial-messages', // 토큰 단위 실시간 스트리밍
     '--verbose', // stream-json에 필요
   ],
 } as const;

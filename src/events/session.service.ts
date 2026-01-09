@@ -1,6 +1,6 @@
 import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
-import { ChildProcess } from 'child_process';
+import type { IPty } from 'node-pty';
 
 import {
   Session,
@@ -71,7 +71,7 @@ export class SessionService {
     }
 
     // Claude 프로세스 정리
-    this.killProcess(session.claudeProcess);
+    this.killPtyProcess(session.claudeProcess);
 
     this.sessions.delete(clientId);
     console.log(`🗑️ 세션 삭제: ${session.sessionId}`);
@@ -92,7 +92,7 @@ export class SessionService {
     }
 
     // 기존 프로세스 정리
-    this.killProcess(oldSession.claudeProcess);
+    this.killPtyProcess(oldSession.claudeProcess);
 
     // 새 세션 생성 (projectPath 유지)
     const newSession: Session = {
@@ -109,14 +109,11 @@ export class SessionService {
   }
 
   /**
-   * 세션 Claude 프로세스 업데이트
+   * 세션 Claude PTY 프로세스 업데이트
    * @param clientId - 클라이언트 Socket ID
-   * @param claudeProcess - Claude 프로세스 (null이면 정리)
+   * @param claudeProcess - Claude PTY 프로세스 (null이면 정리)
    */
-  updateClaudeProcess(
-    clientId: string,
-    claudeProcess: ChildProcess | null,
-  ): void {
+  updateClaudeProcess(clientId: string, claudeProcess: IPty | null): void {
     const session = this.sessions.get(clientId);
     if (session) {
       session.claudeProcess = claudeProcess;
@@ -167,17 +164,17 @@ export class SessionService {
   killExistingProcess(clientId: string): void {
     const session = this.sessions.get(clientId);
     if (session?.claudeProcess) {
-      this.killProcess(session.claudeProcess);
+      this.killPtyProcess(session.claudeProcess);
       session.claudeProcess = null;
     }
   }
 
   /**
-   * 프로세스 안전 종료 (ClaudeService 위임)
-   * @param process - ChildProcess 인스턴스
+   * PTY 프로세스 안전 종료 (ClaudeService 위임)
+   * @param ptyProcess - IPty 인스턴스
    */
-  private killProcess(process: ChildProcess | null): void {
-    if (!process) return;
-    this.claudeService.killProcess(process);
+  private killPtyProcess(ptyProcess: IPty | null): void {
+    if (!ptyProcess) return;
+    this.claudeService.killPtyProcess(ptyProcess);
   }
 }

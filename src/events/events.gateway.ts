@@ -11,7 +11,10 @@ import { FILE_ERROR_MESSAGES } from '#constants/file.constants';
 import { SessionService } from './session.service';
 import { FileService } from './file.service';
 import { ClaudeService } from './claude.service';
-import type { ClaudeResponse } from '#interfaces/claude.interface';
+import type {
+  ClaudeResponse,
+  ClaudeStreamEventResponse,
+} from '#interfaces/claude.interface';
 
 /**
  * WebSocket 이벤트 게이트웨이
@@ -65,7 +68,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const session = this.sessionService.getSession(client.id);
     if (session?.claudeProcess) {
-      this.claudeService.interruptProcess(session.claudeProcess);
+      this.claudeService.interruptPtyProcess(session.claudeProcess);
       return { event: 'cancelled', data: { success: true } };
     }
 
@@ -217,7 +220,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * 프롬프트 처리 (Claude CLI 실행 - stream-json 방식)
+   * 프롬프트 처리 (Claude CLI 실행 - PTY + stream-json 방식)
    */
   @SubscribeMessage('prompt')
   handlePrompt(client: Socket, payload: { message: string }) {
@@ -246,21 +249,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(`🔄 이어가기 프롬프트 (--resume ${session.sessionId})`);
     }
 
-    // Claude 프로세스 생성
-    const claudeProcess = this.claudeService.spawnClaudeProcess(
+    // Claude PTY 프로세스 생성
+    const ptyProcess = this.claudeService.spawnClaudePtyProcess(
       claudeArgs,
       session.projectPath,
     );
 
     // 세션에 프로세스 저장
-    this.sessionService.updateClaudeProcess(client.id, claudeProcess);
+    this.sessionService.updateClaudeProcess(client.id, ptyProcess);
 
-    // stdout 버퍼 (라인 단위 처리용)
+    // PTY 출력 버퍼 (라인 단위 처리용)
     let buffer = '';
 
-    // stdout 데이터 수신 (stream-json)
-    claudeProcess.stdout?.on('data', (data: Buffer) => {
-      buffer += data.toString();
+    // PTY 데이터 수신 (실시간)
+    ptyProcess.onData((data: string) => {
+      // Windows PTY는 \r\n을 사용하므로 \r 제거
+      buffer += data.replace(/\r/g, '');
 
       // 라인 단위로 JSON 파싱
       const lines = buffer.split('\n');
@@ -274,13 +278,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     });
 
-    // stderr 데이터 (에러 로깅)
-    claudeProcess.stderr?.on('data', (data: Buffer) => {
-      console.error('⚠️ Claude stderr:', data.toString());
-    });
-
-    // 프로세스 종료 시
-    claudeProcess.on('close', (exitCode) => {
+    // PTY 프로세스 종료 시
+    ptyProcess.onExit(({ exitCode }) => {
       // 버퍼에 남은 데이터 처리
       if (buffer.trim()) {
         const parsed = this.claudeService.parseJsonLine(buffer);
@@ -289,15 +288,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
       }
 
-      console.log('🔚 Claude 프로세스 종료, exit code:', exitCode);
+      console.log('🔚 Claude PTY 프로세스 종료, exit code:', exitCode);
       client.emit('response_complete', { exitCode });
       this.sessionService.updateClaudeProcess(client.id, null);
-    });
-
-    // 프로세스 에러
-    claudeProcess.on('error', (error) => {
-      console.error('❌ Claude 프로세스 에러:', error);
-      client.emit('error', { message: `Process error: ${error.message}` });
     });
   }
 
@@ -317,11 +310,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       case 'assistant': {
-        // 어시스턴트 응답 (실시간 청크)
+        // 어시스턴트 응답 (누적 메시지 - stream_event와 중복되므로 emit 안 함)
+        // stream_event가 토큰 단위 스트리밍을 담당
         const text = this.claudeService.extractTextFromAssistant(response);
         if (text) {
-          console.log('📨 Claude 응답:', text.substring(0, 50) + '...');
-          client.emit('response_chunk', { text });
+          console.log('📨 Claude 누적 응답:', text.substring(0, 50) + '...');
         }
         break;
       }
@@ -336,10 +329,23 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         break;
       }
 
+      case 'stream_event': {
+        // 토큰 단위 실시간 스트리밍 (--include-partial-messages)
+        const streamResponse = response as ClaudeStreamEventResponse;
+        const event = streamResponse.event;
+
+        // content_block_delta 이벤트에서 텍스트 추출
+        if (event.type === 'content_block_delta' && event.delta?.text) {
+          client.emit('response_chunk', { text: event.delta.text });
+        }
+        break;
+      }
+
       default: {
         // exhaustive check: 예상치 못한 응답 타입 로깅
         const unknownResponse = response as { type: string };
         console.log('❓ 알 수 없는 응답 타입:', unknownResponse.type);
+        console.log('   데이터:', JSON.stringify(unknownResponse).substring(0, 200));
       }
     }
   }
