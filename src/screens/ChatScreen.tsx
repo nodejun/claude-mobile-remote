@@ -2,12 +2,12 @@
  * 채팅 화면
  * Claude와 대화하는 메인 화면
  */
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { socketService } from "../services";
+import { MarkdownMessage } from "../components";
 import type { ChatMessage } from "../types/chat";
 
 export default function ChatScreen() {
@@ -27,93 +28,128 @@ export default function ChatScreen() {
   // AI 응답 중 상태
   const [isLoading, setIsLoading] = useState(false);
 
-  // FlatList 참조 (스크롤 제어용)
-  const flatListRef = useRef<FlatList>(null);
+  // ScrollView 참조 (스크롤 제어용)
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // 현재 AI 응답 메시지 ID (스트리밍 업데이트용)
   const currentAssistantIdRef = useRef<string | null>(null);
+
+  // 스크롤 throttle용 ref
+  const lastScrollTimeRef = useRef<number>(0);
+
+  /**
+   * 마지막 streaming/sending 상태의 assistant 메시지를 찾는 헬퍼 함수
+   * ref 동기화 문제를 방지하기 위해 상태 기반으로 메시지를 찾음
+   */
+  const findLastPendingAssistant = useCallback(
+    (msgs: ChatMessage[]): ChatMessage | undefined => {
+      // 역순으로 검색하여 가장 마지막 pending assistant 찾기
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const msg = msgs[i];
+        if (
+          msg.role === "assistant" &&
+          (msg.status === "streaming" || msg.status === "sending")
+        ) {
+          return msg;
+        }
+      }
+      return undefined;
+    },
+    []
+  );
 
   /**
    * 소켓 이벤트 리스너 등록
    */
   useEffect(() => {
-    console.log("🎧 ChatScreen: 이벤트 리스너 등록 시작");
-
     // 응답 청크 수신 (스트리밍)
     const unsubscribeChunk = socketService.on(
       "response_chunk",
       (data: { text: string }) => {
-        console.log("📥 response_chunk 수신:", data.text?.substring(0, 30));
-        const assistantId = currentAssistantIdRef.current;
-        if (!assistantId) {
-          console.log("⚠️ assistantId가 없음!");
-          return;
-        }
+        // ref 대신 상태 기반으로 마지막 pending assistant 찾기
+        setMessages((prev) => {
+          const pendingAssistant = findLastPendingAssistant(prev);
+          if (!pendingAssistant) {
+            return prev;
+          }
 
-        // 기존 AI 메시지에 텍스트 추가
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantId
+          return prev.map((msg) =>
+            msg.id === pendingAssistant.id
               ? {
                   ...msg,
                   content: msg.content + data.text,
-                  status: "streaming",
+                  status: "streaming" as const,
                 }
               : msg
-          )
-        );
+          );
+        });
 
-        // 스크롤
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: false });
-        }, 50);
+        // 스크롤 (throttle 적용 - 300ms마다 한 번)
+        const now = Date.now();
+        if (now - lastScrollTimeRef.current > 300) {
+          lastScrollTimeRef.current = now;
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: false });
+          }, 50);
+        }
       }
     );
 
     // 응답 완료
     const unsubscribeComplete = socketService.on("response_complete", () => {
-      console.log("📥 response_complete 수신");
-      const assistantId = currentAssistantIdRef.current;
-      if (assistantId) {
-        // 상태를 complete로 변경
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantId ? { ...msg, status: "complete" } : msg
-          )
-        );
-      }
+      // streaming 또는 sending 상태인 마지막 assistant 메시지 찾아서 완료 처리
+      setMessages((prev) => {
+        const pendingAssistant = findLastPendingAssistant(prev);
+
+        if (pendingAssistant) {
+          return prev.map((msg) =>
+            msg.id === pendingAssistant.id
+              ? { ...msg, status: "complete" as const }
+              : msg
+          );
+        }
+
+        return prev;
+      });
 
       setIsLoading(false);
       currentAssistantIdRef.current = null;
+
+      // 응답 완료 후 최종 스크롤
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 200);
     });
 
     // 에러 수신
     const unsubscribeError = socketService.on(
       "error",
       (data: { message: string }) => {
-        console.error("📥 error 수신:", data.message);
+        setMessages((prev) => {
+          const pendingAssistant = findLastPendingAssistant(prev);
 
-        const assistantId = currentAssistantIdRef.current;
-        if (assistantId) {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantId
-                ? { ...msg, content: `오류: ${data.message}`, status: "error" }
+          if (pendingAssistant) {
+            return prev.map((msg) =>
+              msg.id === pendingAssistant.id
+                ? {
+                    ...msg,
+                    content: `오류: ${data.message}`,
+                    status: "error" as const,
+                  }
                 : msg
-            )
-          );
-        }
+            );
+          }
+
+          return prev;
+        });
 
         setIsLoading(false);
         currentAssistantIdRef.current = null;
       }
     );
 
-    console.log("🎧 ChatScreen: 이벤트 리스너 등록 완료");
-
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
-      console.log("🧹 ChatScreen: 이벤트 리스너 해제");
       unsubscribeChunk();
       unsubscribeComplete();
       unsubscribeError();
@@ -123,7 +159,7 @@ export default function ChatScreen() {
   /**
    * 메시지 전송 처리
    */
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     // 빈 메시지 또는 로딩 중이면 무시
     if (!inputText.trim() || isLoading) return;
 
@@ -158,20 +194,18 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     // 서버에 프롬프트 전송
-    console.log("📤 프롬프트 전송:", userMessage.content);
-    console.log("📤 현재 assistantId:", assistantMessage.id);
     socketService.emit("prompt", { message: userMessage.content });
 
     // 스크롤
     setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
+      scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  };
+  }, [inputText, isLoading]);
 
   /**
    * 메시지 아이템 렌더링
    */
-  const renderMessage = ({ item }: { item: ChatMessage }) => {
+  const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
     const isUser = item.role === "user";
     const isStreaming =
       item.status === "streaming" || item.status === "sending";
@@ -200,16 +234,14 @@ export default function ChatScreen() {
             color="#007AFF"
             style={{ marginVertical: 8 }}
           />
-        ) : (
-          <Text
-            style={[
-              styles.messageText,
-              isUser ? styles.userText : styles.assistantText,
-            ]}
-          >
+        ) : isUser ? (
+          // 사용자 메시지: 평문 텍스트
+          <Text style={[styles.messageText, styles.userText]}>
             {item.content}
-            {isStreaming && <Text style={styles.cursor}>▌</Text>}
           </Text>
+        ) : (
+          // AI 메시지: 마크다운 렌더링
+          <MarkdownMessage content={item.content} isStreaming={isStreaming} />
         )}
 
         {/* 시간 표시 (스트리밍 중이 아닐 때만) */}
@@ -223,7 +255,7 @@ export default function ChatScreen() {
         )}
       </View>
     );
-  };
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -232,19 +264,24 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* 메시지 목록 */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
         contentContainerStyle={styles.messageList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
+        showsVerticalScrollIndicator={true}
+      >
+        {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>💬 Claude와 대화를 시작하세요!</Text>
           </View>
-        }
-      />
+        ) : (
+          messages.map((item) => (
+            <View key={item.id}>
+              {renderMessage({ item })}
+            </View>
+          ))
+        )}
+      </ScrollView>
 
       {/* 입력 영역 */}
       <View style={styles.inputContainer}>
@@ -283,11 +320,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
 
+  // 스크롤 뷰
+  scrollView: {
+    flex: 1,
+  },
+
   // 메시지 목록
   messageList: {
     padding: 16,
-    paddingBottom: 8,
-    flexGrow: 1,
   },
 
   // 빈 상태
