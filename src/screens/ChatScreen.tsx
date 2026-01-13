@@ -148,13 +148,53 @@ export default function ChatScreen() {
       }
     );
 
+    // 응답 중단 완료
+    const unsubscribeCancelled = socketService.on(
+      "cancelled",
+      (data: { success: boolean; reason?: string }) => {
+        console.log("🛑 응답 중단 완료:", data);
+
+        setMessages((prev) => {
+          const pendingAssistant = findLastPendingAssistant(prev);
+
+          if (pendingAssistant) {
+            return prev.map((msg) =>
+              msg.id === pendingAssistant.id
+                ? {
+                    ...msg,
+                    content: msg.content + "\n\n*(응답 중단됨)*",
+                    status: "complete" as const,
+                  }
+                : msg
+            );
+          }
+
+          return prev;
+        });
+
+        setIsLoading(false);
+        currentAssistantIdRef.current = null;
+      }
+    );
+
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
       unsubscribeChunk();
       unsubscribeComplete();
       unsubscribeError();
+      unsubscribeCancelled();
     };
   }, []);
+
+  /**
+   * 응답 중단 처리
+   */
+  const handleCancel = useCallback(() => {
+    if (!isLoading) return;
+
+    console.log("🛑 응답 중단 요청");
+    socketService.emit("cancel");
+  }, [isLoading]);
 
   /**
    * 메시지 전송 처리
@@ -295,20 +335,27 @@ export default function ChatScreen() {
           maxLength={4000}
           editable={!isLoading}
         />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
+        {isLoading ? (
+          // 로딩 중: 중단 버튼
+          <TouchableOpacity
+            style={[styles.sendButton, styles.cancelButton]}
+            onPress={handleCancel}
+          >
+            <Text style={styles.sendButtonText}>중단</Text>
+          </TouchableOpacity>
+        ) : (
+          // 평상시: 전송 버튼
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !inputText.trim() && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+          >
             <Text style={styles.sendButtonText}>전송</Text>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -440,6 +487,9 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#B0B0B0",
+  },
+  cancelButton: {
+    backgroundColor: "#FF3B30",
   },
   sendButtonText: {
     color: "#FFFFFF",
