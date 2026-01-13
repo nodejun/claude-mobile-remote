@@ -10,6 +10,10 @@
 export type RootStackParamList = {
   Connection: undefined; // 파라미터 없음
   MainTabs: undefined; // 파라미터 없음
+  FileViewer: {
+    filePath: string; // 파일 경로 (상대 경로)
+    fileName: string; // 파일 이름
+  };
 };
 
 /**

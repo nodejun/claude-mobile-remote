@@ -14,6 +14,7 @@ import {
   ChatScreen,
   FilesScreen,
   SettingsScreen,
+  FileViewerScreen,
 } from '../screens';
 import { useConnection } from '../hooks';
 
@@ -82,7 +83,10 @@ function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isConnected ? (
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="FileViewer" component={FileViewerScreen} />
+        </>
       ) : (
         <Stack.Screen name="Connection" component={ConnectionScreen} />
       )}
