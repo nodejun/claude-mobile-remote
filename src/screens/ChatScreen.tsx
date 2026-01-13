@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
 import { socketService } from "../services";
 import { MarkdownMessage } from "../components";
@@ -155,6 +156,19 @@ export default function ChatScreen() {
         console.log("🛑 응답 중단 완료:", data);
 
         setMessages((prev) => {
+          // 완료된 assistant 메시지가 있는지 확인 (첫 번째 프롬프트인지 판단)
+          const hasCompletedAssistant = prev.some(
+            (msg) => msg.role === "assistant" && msg.status === "complete"
+          );
+
+          // 첫 번째 프롬프트에서 중단된 경우 → 세션 리셋
+          if (!hasCompletedAssistant) {
+            console.log("🔄 첫 번째 프롬프트 중단 → 세션 리셋");
+            socketService.emit("end_session");
+            return prev; // session_ended에서 메시지 초기화됨
+          }
+
+          // 이후 프롬프트에서 중단된 경우 → 메시지에 중단 표시
           const pendingAssistant = findLastPendingAssistant(prev);
 
           if (pendingAssistant) {
@@ -177,12 +191,30 @@ export default function ChatScreen() {
       }
     );
 
+    // 세션 종료 완료
+    const unsubscribeSessionEnded = socketService.on(
+      "session_ended",
+      (data: { success: boolean; newSessionId?: string; reason?: string }) => {
+        console.log("🔄 세션 종료 완료:", data);
+
+        if (data.success) {
+          // 메시지 초기화
+          setMessages([]);
+          currentAssistantIdRef.current = null;
+          console.log("✅ 새 대화가 시작되었습니다. 세션:", data.newSessionId);
+        } else {
+          console.error("❌ 세션 종료 실패:", data.reason);
+        }
+      }
+    );
+
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
       unsubscribeChunk();
       unsubscribeComplete();
       unsubscribeError();
       unsubscribeCancelled();
+      unsubscribeSessionEnded();
     };
   }, []);
 
@@ -194,6 +226,19 @@ export default function ChatScreen() {
 
     console.log("🛑 응답 중단 요청");
     socketService.emit("cancel");
+  }, [isLoading]);
+
+  /**
+   * 세션 종료 (새 대화 시작)
+   */
+  const handleEndSession = useCallback(() => {
+    if (isLoading) {
+      alert("응답 중에는 새 대화를 시작할 수 없습니다.");
+      return;
+    }
+
+    console.log("🔄 세션 종료 요청");
+    socketService.emit("end_session");
   }, [isLoading]);
 
   /**
@@ -303,6 +348,21 @@ export default function ChatScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
+      {/* 헤더 영역 */}
+      {messages.length > 0 && (
+        <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}>
+          <TouchableOpacity
+            style={styles.newChatButton}
+            onPress={handleEndSession}
+            disabled={isLoading}
+          >
+            <Text style={[styles.newChatButtonText, isLoading && styles.newChatButtonDisabled]}>
+              🔄 새 대화
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 메시지 목록 */}
       <ScrollView
         ref={scrollViewRef}
@@ -365,6 +425,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+
+  // 헤더 영역
+  header: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    backgroundColor: "#fff",
+  },
+  newChatButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f0",
+  },
+  newChatButtonText: {
+    fontSize: 14,
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  newChatButtonDisabled: {
+    color: "#999",
   },
 
   // 스크롤 뷰
