@@ -6,6 +6,12 @@ export const FILE_CONFIG = {
   MAX_FILE_SIZE: 1024 * 1024,
   /** 제외할 디렉토리 목록 */
   EXCLUDED_DIRS: ['node_modules', 'dist', '.git'] as readonly string[],
+  /** 제외할 파일 목록 (용량이 크거나 불필요한 파일) */
+  EXCLUDED_FILES: [
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+  ] as readonly string[],
   /** 숨김 파일 접두사 */
   HIDDEN_PREFIX: '.',
   /** 기본 인코딩 */

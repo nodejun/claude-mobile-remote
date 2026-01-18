@@ -30,12 +30,13 @@ export class FileService {
 
   /**
    * 파일/폴더 엔트리 필터링
-   * 숨김 파일, node_modules 등 제외
+   * 숨김 파일, node_modules, package-lock.json 등 제외
    */
   private filterEntries(entries: fs.Dirent[]): fs.Dirent[] {
     return entries
       .filter((entry) => !entry.name.startsWith(FILE_CONFIG.HIDDEN_PREFIX))
-      .filter((entry) => !FILE_CONFIG.EXCLUDED_DIRS.includes(entry.name));
+      .filter((entry) => !FILE_CONFIG.EXCLUDED_DIRS.includes(entry.name))
+      .filter((entry) => !FILE_CONFIG.EXCLUDED_FILES.includes(entry.name));
   }
 
   /**

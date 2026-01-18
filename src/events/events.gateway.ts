@@ -11,10 +11,13 @@ import { FILE_ERROR_MESSAGES } from '#constants/file.constants';
 import { SessionService } from './session.service';
 import { FileService } from './file.service';
 import { ClaudeService } from './claude.service';
+import { ChangesService } from './changes.service';
 import type {
   ClaudeResponse,
   ClaudeStreamEventResponse,
+  ClaudeUserResponse,
 } from '#interfaces/claude.interface';
+import type { ChangeActionPayload } from '#interfaces/changes.interface';
 
 /**
  * WebSocket 이벤트 게이트웨이
@@ -33,6 +36,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly sessionService: SessionService,
     private readonly fileService: FileService,
     private readonly claudeService: ClaudeService,
+    private readonly changesService: ChangesService,
   ) {}
 
   /**
@@ -341,12 +345,111 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         break;
       }
 
+      case 'user': {
+        // tool_result 응답 (파일 변경 정보 포함)
+        const userResponse = response as ClaudeUserResponse;
+        if (userResponse.tool_use_result) {
+          const session = this.sessionService.getSession(client.id);
+          if (session) {
+            const change = this.changesService.trackFromToolUse(
+              client.id,
+              session.projectPath,
+              userResponse.tool_use_result,
+            );
+            if (change) {
+              // 클라이언트에게 파일 변경 알림
+              client.emit('file_changed', {
+                id: change.id,
+                type: change.type,
+                filePath: change.filePath,
+                additions: change.additions,
+                deletions: change.deletions,
+              });
+            }
+          }
+        }
+        break;
+      }
+
       default: {
         // exhaustive check: 예상치 못한 응답 타입 로깅
         const unknownResponse = response as { type: string };
         console.log('❓ 알 수 없는 응답 타입:', unknownResponse.type);
-        console.log('   데이터:', JSON.stringify(unknownResponse).substring(0, 200));
+        console.log(
+          '   데이터:',
+          JSON.stringify(unknownResponse).substring(0, 200),
+        );
       }
     }
+  }
+
+  /**
+   * 변경사항 목록 조회
+   */
+  @SubscribeMessage('get_changes')
+  handleGetChanges(client: Socket) {
+    const result = this.changesService.getChanges(client.id);
+    return { event: 'changes_list', data: result };
+  }
+
+  /**
+   * 특정 변경사항 상세 조회
+   */
+  @SubscribeMessage('get_change_detail')
+  handleGetChangeDetail(client: Socket, payload: ChangeActionPayload) {
+    if (!payload?.changeId) {
+      return {
+        event: 'error',
+        data: { message: 'Change ID is required' },
+      };
+    }
+
+    const change = this.changesService.getChange(client.id, payload.changeId);
+    if (!change) {
+      return {
+        event: 'error',
+        data: { message: 'Change not found' },
+      };
+    }
+
+    return { event: 'change_detail', data: change };
+  }
+
+  /**
+   * 변경 승인
+   */
+  @SubscribeMessage('approve_change')
+  handleApproveChange(client: Socket, payload: ChangeActionPayload) {
+    if (!payload?.changeId) {
+      return {
+        event: 'error',
+        data: { message: 'Change ID is required' },
+      };
+    }
+
+    const result = this.changesService.approveChange(
+      client.id,
+      payload.changeId,
+    );
+    return { event: 'change_approved', data: result };
+  }
+
+  /**
+   * 변경 거부 (원본으로 복원)
+   */
+  @SubscribeMessage('reject_change')
+  handleRejectChange(client: Socket, payload: ChangeActionPayload) {
+    if (!payload?.changeId) {
+      return {
+        event: 'error',
+        data: { message: 'Change ID is required' },
+      };
+    }
+
+    const result = this.changesService.rejectChange(
+      client.id,
+      payload.changeId,
+    );
+    return { event: 'change_rejected', data: result };
   }
 }
