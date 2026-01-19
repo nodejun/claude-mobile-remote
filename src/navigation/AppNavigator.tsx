@@ -13,6 +13,8 @@ import {
   ConnectionScreen,
   ChatScreen,
   FilesScreen,
+  ChangesScreen,
+  ChangeDetailScreen,
   SettingsScreen,
   FileViewerScreen,
 } from '../screens';
@@ -60,6 +62,16 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
+        name="Changes"
+        component={ChangesScreen}
+        options={{
+          tabBarLabel: '변경',
+          tabBarIcon: () => (
+            <Text style={{ fontSize: 20 }}>📝</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
@@ -86,6 +98,7 @@ function RootNavigator() {
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="FileViewer" component={FileViewerScreen} />
+          <Stack.Screen name="ChangeDetail" component={ChangeDetailScreen} />
         </>
       ) : (
         <Stack.Screen name="Connection" component={ConnectionScreen} />

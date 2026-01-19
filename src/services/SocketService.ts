@@ -190,6 +190,58 @@ class SocketService {
       });
     });
   }
+
+  /**
+   * 변경 승인
+   */
+  async approveChange(changeId: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: '연결되지 않음' });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ success: false, error: '응답 시간 초과' });
+      }, 10000);
+
+      this.socket.emit('approve_change', { changeId });
+      this.socket.once('change_approved', (data: { success: boolean; error?: string }) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({ success: false, error: data.message });
+      });
+    });
+  }
+
+  /**
+   * 변경 거부
+   */
+  async rejectChange(changeId: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: '연결되지 않음' });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ success: false, error: '응답 시간 초과' });
+      }, 10000);
+
+      this.socket.emit('reject_change', { changeId });
+      this.socket.once('change_rejected', (data: { success: boolean; error?: string }) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({ success: false, error: data.message });
+      });
+    });
+  }
 }
 
 // 싱글톤 인스턴스
