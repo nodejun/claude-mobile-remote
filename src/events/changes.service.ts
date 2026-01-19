@@ -46,16 +46,41 @@ export class ChangesService {
       return null;
     }
 
+    // 변경 타입: Claude CLI가 제공하는 type 우선 사용, 없으면 추론
+    let changeType: ChangeType;
+    if (toolResult.type) {
+      // Claude CLI가 제공한 type 사용
+      changeType = toolResult.type;
+    } else {
+      // 타입 추론: originalFile이 있으면 edit, 없으면 create
+      changeType = toolResult.originalFile ? 'edit' : 'create';
+    }
+
+    // 새 내용: create/edit 타입은 파일에서 읽음 (전체 보기용)
+    let newContent: string | null = null;
+    if (changeType === 'create' || changeType === 'edit') {
+      // create/edit: 전체 파일 내용이 필요 (전체 보기에서 하이라이트 표시용)
+      if (fs.existsSync(absolutePath)) {
+        try {
+          newContent = fs.readFileSync(absolutePath, 'utf-8');
+        } catch {
+          newContent = toolResult.content || toolResult.newString || null;
+        }
+      } else {
+        newContent = toolResult.content || toolResult.newString || null;
+      }
+    }
+
     const change: FileChange = {
       id: uuidv4(),
-      type: toolResult.type,
+      type: changeType,
       filePath: relativePath,
       absolutePath: absolutePath,
-      originalContent: toolResult.originalFile,
-      newContent: toolResult.content,
-      hunks: this.convertToHunks(toolResult.structuredPatch),
-      additions: this.countAdditions(toolResult.structuredPatch),
-      deletions: this.countDeletions(toolResult.structuredPatch),
+      originalContent: toolResult.originalFile ?? null, // undefined를 null로 변환
+      newContent: newContent,
+      hunks: this.convertToHunks(toolResult.structuredPatch || []),
+      additions: this.countAdditions(toolResult.structuredPatch || []),
+      deletions: this.countDeletions(toolResult.structuredPatch || []),
       timestamp: new Date(),
       status: 'pending',
       source: 'claude',
@@ -186,22 +211,36 @@ export class ChangesService {
     }
 
     try {
+      console.log(`🔄 복원 시도: [${change.type}] ${change.filePath}`);
+
       // 원본으로 복원
       if (change.type === 'create') {
         // 생성된 파일 삭제
         if (fs.existsSync(change.absolutePath)) {
           fs.unlinkSync(change.absolutePath);
         }
-      } else if (change.type === 'edit' && change.originalContent !== null) {
+      } else if (change.type === 'edit') {
         // 원본 내용으로 복원
-        fs.writeFileSync(change.absolutePath, change.originalContent, 'utf-8');
-      } else if (change.type === 'delete' && change.originalContent !== null) {
+        if (change.originalContent !== null) {
+          fs.writeFileSync(
+            change.absolutePath,
+            change.originalContent,
+            'utf-8',
+          );
+        }
+      } else if (change.type === 'delete') {
         // 삭제된 파일 복원
-        fs.writeFileSync(change.absolutePath, change.originalContent, 'utf-8');
+        if (change.originalContent !== null) {
+          fs.writeFileSync(
+            change.absolutePath,
+            change.originalContent,
+            'utf-8',
+          );
+        }
       }
 
       change.status = 'rejected';
-      console.log(`❌ 변경 거부 (복원됨): ${change.filePath}`);
+      console.log(`❌ 변경 거부 완료: ${change.filePath}`);
 
       return {
         success: true,
@@ -249,6 +288,7 @@ export class ChangesService {
   private convertToHunks(
     structuredPatch: ToolUseResult['structuredPatch'],
   ): DiffHunk[] {
+    if (!structuredPatch) return [];
     return structuredPatch.map((patch) => ({
       oldStart: patch.oldStart,
       oldLines: patch.oldLines,
@@ -264,10 +304,9 @@ export class ChangesService {
   private countAdditions(
     structuredPatch: ToolUseResult['structuredPatch'],
   ): number {
+    if (!structuredPatch) return 0;
     return structuredPatch.reduce((count, patch) => {
-      return (
-        count + patch.lines.filter((line) => line.startsWith('+')).length
-      );
+      return count + patch.lines.filter((line) => line.startsWith('+')).length;
     }, 0);
   }
 
@@ -277,10 +316,9 @@ export class ChangesService {
   private countDeletions(
     structuredPatch: ToolUseResult['structuredPatch'],
   ): number {
+    if (!structuredPatch) return 0;
     return structuredPatch.reduce((count, patch) => {
-      return (
-        count + patch.lines.filter((line) => line.startsWith('-')).length
-      );
+      return count + patch.lines.filter((line) => line.startsWith('-')).length;
     }, 0);
   }
 

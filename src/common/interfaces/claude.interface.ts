@@ -66,19 +66,34 @@ export interface ClaudeStreamEventResponse {
 /**
  * 파일 변경 결과 타입
  * Claude가 파일을 생성/수정/삭제할 때 반환되는 정보
+ * 실제 Claude CLI 응답 구조에 맞춤
+ *
+ * 파일 도구 (Write/Edit): filePath, type, content/newString, originalFile, structuredPatch
+ * Bash 도구 (rm 등): stdout, stderr, interrupted, isImage (filePath 없음!)
  */
 export interface ToolUseResult {
-  type: 'create' | 'edit' | 'delete';
-  filePath: string;
-  content: string | null;
-  structuredPatch: Array<{
+  // 파일 도구 필드
+  filePath?: string; // 파일 경로 (Bash 결과에는 없음)
+  type?: 'create' | 'edit' | 'delete'; // Claude CLI가 제공하는 타입
+  content?: string; // 파일 내용 (create 시)
+  oldString?: string; // 이전 내용 (edit 시)
+  newString?: string; // 새 내용 (edit 시)
+  originalFile?: string | null; // 원본 파일 전체 내용
+  structuredPatch?: Array<{
     oldStart: number;
     oldLines: number;
     newStart: number;
     newLines: number;
     lines: string[];
   }>;
-  originalFile: string | null;
+  userModified?: boolean;
+  replaceAll?: boolean;
+
+  // Bash 도구 필드
+  stdout?: string;
+  stderr?: string;
+  interrupted?: boolean;
+  isImage?: boolean;
 }
 
 /**
