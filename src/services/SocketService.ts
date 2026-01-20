@@ -242,6 +242,38 @@ class SocketService {
       });
     });
   }
+
+  /**
+   * 파일 저장
+   */
+  async saveFile(
+    filePath: string,
+    content: string
+  ): Promise<{ success: boolean; filePath?: string; size?: number; error?: string }> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: '연결되지 않음' });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ success: false, error: '응답 시간 초과' });
+      }, 10000);
+
+      this.socket.emit('save_file', { filePath, content });
+      this.socket.once(
+        'file_saved',
+        (data: { success: boolean; filePath: string; size: number }) => {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      );
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({ success: false, error: data.message });
+      });
+    });
+  }
 }
 
 // 싱글톤 인스턴스

@@ -1,8 +1,14 @@
 /**
  * 파일 뷰어 화면
  * 선택한 파일의 내용을 구문 강조와 함께 표시
+ * 편집 모드에서 파일 수정 및 저장 가능
+ *
+ * 새로운 편집 방식:
+ * - TextInput의 내장 스크롤 기능 사용 (scrollEnabled={true})
+ * - 드래그 = 스크롤, 탭 = 커서 위치 지정
+ * - Android: softwareKeyboardLayoutMode="pan"으로 키보드 자동 처리
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +17,9 @@ import {
   StatusBar,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
+  Alert,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import CodeHighlighter from 'react-native-code-highlighter';
@@ -34,6 +43,16 @@ export default function FileViewerScreen({ navigation, route }: Props) {
   } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 편집 모드 상태
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [editContent, setEditContent] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  // 커서 위치 (selection)
+  const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+
+  // TextInput ref (포커스 제어용)
+  const textInputRef = useRef<TextInput>(null);
 
   /**
    * 파일 크기 포맷팅
@@ -72,6 +91,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
       (data) => {
         setIsLoading(false);
         setContent(data.content);
+        setEditContent(data.content); // 편집용 내용도 초기화
         setLanguage(data.language);
         setFileInfo({
           size: data.size,
@@ -100,8 +120,89 @@ export default function FileViewerScreen({ navigation, route }: Props) {
    * 뒤로 가기 핸들러
    */
   const handleGoBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    // 편집 모드에서 변경사항이 있으면 확인
+    if (isEditMode && editContent !== content) {
+      Alert.alert(
+        '변경사항 저장',
+        '저장하지 않은 변경사항이 있습니다. 저장하지 않고 나가시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '저장하지 않고 나가기',
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, isEditMode, editContent, content]);
+
+  /**
+   * 편집 모드 시작
+   */
+  const handleStartEdit = useCallback(() => {
+    setEditContent(content);
+    setSelection({ start: 0, end: 0 }); // 커서를 맨 위로
+    setIsEditMode(true);
+  }, [content]);
+
+  /**
+   * 편집 취소
+   */
+  const handleCancelEdit = useCallback(() => {
+    if (editContent !== content) {
+      Alert.alert(
+        '편집 취소',
+        '변경사항이 저장되지 않습니다. 취소하시겠습니까?',
+        [
+          { text: '계속 편집', style: 'cancel' },
+          {
+            text: '취소',
+            style: 'destructive',
+            onPress: () => {
+              setEditContent(content);
+              setIsEditMode(false);
+            },
+          },
+        ]
+      );
+    } else {
+      setIsEditMode(false);
+    }
+  }, [editContent, content]);
+
+  /**
+   * 파일 저장
+   */
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+
+    try {
+      const result = await socketService.saveFile(filePath, editContent);
+
+      if (result.success) {
+        // 저장 성공: 원본 content 업데이트
+        setContent(editContent);
+        setIsEditMode(false);
+        if (result.size) {
+          setFileInfo((prev) =>
+            prev
+              ? { ...prev, size: result.size!, lastModified: new Date().toISOString() }
+              : null
+          );
+        }
+        Alert.alert('저장 완료', '파일이 저장되었습니다.');
+      } else {
+        Alert.alert('저장 실패', result.error || '파일 저장에 실패했습니다.');
+      }
+    } catch (err) {
+      Alert.alert('저장 실패', '파일 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [filePath, editContent]);
 
   // 로딩 상태
   if (isLoading) {
@@ -136,44 +237,98 @@ export default function FileViewerScreen({ navigation, route }: Props) {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {fileName}
         </Text>
-        <View style={styles.languageBadge}>
-          <Text style={styles.languageText}>{language}</Text>
-        </View>
+
+        {/* 편집 모드에 따른 버튼 */}
+        {isEditMode ? (
+          <View style={styles.editButtons}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelEdit}
+              disabled={isSaving}
+            >
+              <Text style={styles.cancelButtonText}>✕ 취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>💾 저장</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.editButton} onPress={handleStartEdit}>
+              <Text style={styles.editButtonText}>✏️ 편집</Text>
+            </TouchableOpacity>
+            <View style={styles.languageBadge}>
+              <Text style={styles.languageText}>{language}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* 파일 정보 */}
       {fileInfo && (
         <View style={styles.infoContainer}>
           <Text style={styles.infoText}>
-            📁 {filePath} • {formatFileSize(fileInfo.size)} • {formatDate(fileInfo.lastModified)}
+            📁 {filePath} • {formatFileSize(fileInfo.size)} •{' '}
+            {formatDate(fileInfo.lastModified)}
+            {isEditMode && editContent !== content && (
+              <Text style={styles.modifiedBadge}> • 수정됨</Text>
+            )}
           </Text>
         </View>
       )}
 
-      {/* 코드 뷰어 */}
-      <ScrollView style={styles.codeContainer} horizontal>
-        <ScrollView style={styles.codeScroll}>
-          <CodeHighlighter
-            hljsStyle={atomOneDark}
-            language={language}
-            customStyle={styles.codeBlock}
-            textStyle={styles.codeText}
-            scrollViewProps={{
-              horizontal: true,
-              contentContainerStyle: {
-                minWidth: '100%',
-                flexGrow: 0,
-              },
-              style: {
-                flexGrow: 0,
-                flexShrink: 1,
-              },
-            }}
-          >
-            {content}
-          </CodeHighlighter>
+      {/* 편집 모드: TextInput (Android: softwareKeyboardLayoutMode="pan"으로 키보드 처리) */}
+      {isEditMode ? (
+        <TextInput
+          ref={textInputRef}
+          style={styles.editorTextInput}
+          value={editContent}
+          onChangeText={setEditContent}
+          multiline
+          scrollEnabled={true}
+          selection={selection}
+          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          textAlignVertical="top"
+          selectionColor="#007AFF"
+          placeholder="코드를 입력하세요..."
+          placeholderTextColor="#666"
+        />
+      ) : (
+        <ScrollView style={styles.codeContainer} horizontal>
+          <ScrollView style={styles.codeScroll}>
+            <CodeHighlighter
+              hljsStyle={atomOneDark}
+              language={language}
+              customStyle={styles.codeBlock}
+              textStyle={styles.codeText}
+              scrollViewProps={{
+                horizontal: true,
+                contentContainerStyle: {
+                  minWidth: '100%',
+                  flexGrow: 0,
+                },
+                style: {
+                  flexGrow: 0,
+                  flexShrink: 1,
+                },
+              }}
+            >
+              {content}
+            </CodeHighlighter>
+          </ScrollView>
         </ScrollView>
-      </ScrollView>
+      )}
     </View>
   );
 }
@@ -215,12 +370,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#404040',
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  editButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  editButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#404040',
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  cancelButtonText: {
+    fontSize: 13,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  saveButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#34C759',
+    borderRadius: 4,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#2a5a2e',
+  },
+  saveButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '600',
+  },
   languageBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     backgroundColor: '#007AFF',
     borderRadius: 4,
-    marginLeft: 8,
   },
   languageText: {
     fontSize: 12,
@@ -239,6 +441,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#888',
   },
+  modifiedBadge: {
+    color: '#FF9500',
+    fontWeight: '600',
+  },
   codeContainer: {
     flex: 1,
   },
@@ -253,6 +459,16 @@ const styles = StyleSheet.create({
   codeText: {
     fontSize: 13,
     fontFamily: 'monospace',
+  },
+  editorTextInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: '#d4d4d4',
+    lineHeight: 20,
+    backgroundColor: '#1e1e1e',
+    textAlignVertical: 'top',
   },
   loadingText: {
     marginTop: 12,
