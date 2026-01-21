@@ -8,6 +8,8 @@ import {
   FileTreeResult,
   FileContentResult,
   SaveFileResult,
+  FileOperationResult,
+  FileOperationError,
 } from '#interfaces/file.interface';
 
 /**
@@ -26,6 +28,21 @@ export class FileService {
     const normalizedBase = path.normalize(basePath);
     const normalizedTarget = path.normalize(targetPath);
     return normalizedTarget.startsWith(normalizedBase);
+  }
+
+  /**
+   * 파일명 유효성 검사
+   * @param name - 검증할 파일/폴더 이름
+   * @returns 유효하면 true
+   */
+  private validateFileName(name: string): boolean {
+    if (!name || name.trim() === '') return false;
+    // Windows/Linux 공통 금지 문자 (제어 문자 포함 - 의도적)
+    // eslint-disable-next-line no-control-regex
+    const INVALID_CHARS = /[<>:"|?*\x00-\x1f]/;
+    if (INVALID_CHARS.test(name)) return false;
+    if (name === '.' || name === '..') return false;
+    return true;
   }
 
   /**
@@ -161,5 +178,278 @@ export class FileService {
       filePath: resolvedPath,
       size: stats.size,
     };
+  }
+
+  /**
+   * 파일/폴더 생성
+   * @param basePath - 프로젝트 루트 경로
+   * @param relativePath - 생성할 파일/폴더의 상대 경로
+   * @param isDirectory - 폴더 생성 여부
+   * @param content - 파일 내용 (파일인 경우, 선택사항)
+   * @returns 작업 결과
+   */
+  createFile(
+    basePath: string,
+    relativePath: string,
+    isDirectory: boolean,
+    content?: string,
+  ): FileOperationResult {
+    try {
+      const fullPath = path.resolve(basePath, relativePath);
+
+      // 경로 검증
+      if (!this.validatePath(basePath, fullPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PATH_VALIDATION_FAILED,
+            message: '잘못된 경로입니다',
+          },
+        };
+      }
+
+      // 파일명 검증
+      const fileName = path.basename(fullPath);
+      if (!this.validateFileName(fileName)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.INVALID_FILE_NAME,
+            message: '사용할 수 없는 파일명입니다',
+          },
+        };
+      }
+
+      // 이미 존재하는지 확인
+      if (fs.existsSync(fullPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.FILE_EXISTS,
+            message: '같은 이름의 파일이 이미 존재합니다',
+          },
+        };
+      }
+
+      // 생성
+      if (isDirectory) {
+        fs.mkdirSync(fullPath, { recursive: true });
+      } else {
+        // 상위 디렉토리가 없으면 생성
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(fullPath, content || '', FILE_CONFIG.DEFAULT_ENCODING);
+      }
+
+      return {
+        success: true,
+        filePath: relativePath,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        filePath: relativePath,
+        error: {
+          code: FileOperationError.UNKNOWN_ERROR,
+          message:
+            error instanceof Error
+              ? error.message
+              : '알 수 없는 오류가 발생했습니다',
+        },
+      };
+    }
+  }
+
+  /**
+   * 파일/폴더 삭제
+   * @param basePath - 프로젝트 루트 경로
+   * @param relativePath - 삭제할 파일/폴더의 상대 경로
+   * @returns 작업 결과
+   */
+  deleteFile(basePath: string, relativePath: string): FileOperationResult {
+    try {
+      const fullPath = path.resolve(basePath, relativePath);
+
+      // 경로 검증
+      if (!this.validatePath(basePath, fullPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PATH_VALIDATION_FAILED,
+            message: '잘못된 경로입니다',
+          },
+        };
+      }
+
+      // 존재 확인
+      if (!fs.existsSync(fullPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.FILE_NOT_FOUND,
+            message: '파일을 찾을 수 없습니다',
+          },
+        };
+      }
+
+      const stats = fs.statSync(fullPath);
+
+      // 삭제
+      if (stats.isDirectory()) {
+        // 폴더인 경우: 재귀적 삭제
+        fs.rmSync(fullPath, { recursive: true, force: true });
+      } else {
+        // 파일인 경우
+        fs.unlinkSync(fullPath);
+      }
+
+      return {
+        success: true,
+        filePath: relativePath,
+      };
+    } catch (error) {
+      // 권한 에러 확인
+      if (error.code === 'EACCES' || error.code === 'EPERM') {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PERMISSION_DENIED,
+            message: '파일 접근 권한이 없습니다',
+          },
+        };
+      }
+
+      return {
+        success: false,
+        filePath: relativePath,
+        error: {
+          code: FileOperationError.UNKNOWN_ERROR,
+          message:
+            error instanceof Error
+              ? error.message
+              : '알 수 없는 오류가 발생했습니다',
+        },
+      };
+    }
+  }
+
+  /**
+   * 파일/폴더 이름 변경
+   * @param basePath - 프로젝트 루트 경로
+   * @param relativePath - 대상 파일/폴더의 상대 경로
+   * @param newName - 새 이름 (경로 아닌 이름만)
+   * @returns 작업 결과
+   */
+  renameFile(
+    basePath: string,
+    relativePath: string,
+    newName: string,
+  ): FileOperationResult {
+    try {
+      const oldPath = path.resolve(basePath, relativePath);
+
+      // 경로 검증
+      if (!this.validatePath(basePath, oldPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PATH_VALIDATION_FAILED,
+            message: '잘못된 경로입니다',
+          },
+        };
+      }
+
+      // 새 파일명 검증
+      if (!this.validateFileName(newName)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.INVALID_FILE_NAME,
+            message: '사용할 수 없는 파일명입니다',
+          },
+        };
+      }
+
+      // 존재 확인
+      if (!fs.existsSync(oldPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.FILE_NOT_FOUND,
+            message: '파일을 찾을 수 없습니다',
+          },
+        };
+      }
+
+      // 새 경로 생성
+      const newPath = path.join(path.dirname(oldPath), newName);
+
+      // 새 경로도 basePath 내부인지 검증
+      if (!this.validatePath(basePath, newPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PATH_VALIDATION_FAILED,
+            message: '잘못된 경로입니다',
+          },
+        };
+      }
+
+      // 같은 이름 확인
+      if (fs.existsSync(newPath)) {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.FILE_EXISTS,
+            message: '같은 이름의 파일이 이미 존재합니다',
+          },
+        };
+      }
+
+      // 이름 변경
+      fs.renameSync(oldPath, newPath);
+
+      return {
+        success: true,
+        filePath: path.relative(basePath, newPath),
+      };
+    } catch (error) {
+      // 권한 에러 확인
+      if (error.code === 'EACCES' || error.code === 'EPERM') {
+        return {
+          success: false,
+          filePath: relativePath,
+          error: {
+            code: FileOperationError.PERMISSION_DENIED,
+            message: '파일 접근 권한이 없습니다',
+          },
+        };
+      }
+
+      return {
+        success: false,
+        filePath: relativePath,
+        error: {
+          code: FileOperationError.UNKNOWN_ERROR,
+          message:
+            error instanceof Error
+              ? error.message
+              : '알 수 없는 오류가 발생했습니다',
+        },
+      };
+    }
   }
 }

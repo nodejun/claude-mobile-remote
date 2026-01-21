@@ -18,6 +18,7 @@ import type {
   ClaudeUserResponse,
 } from '#interfaces/claude.interface';
 import type { ChangeActionPayload } from '#interfaces/changes.interface';
+import type { FileOperationRequest } from '#interfaces/file.interface';
 
 /**
  * WebSocket 이벤트 게이트웨이
@@ -221,6 +222,103 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         },
       };
     }
+  }
+
+  /**
+   * 파일/폴더 생성
+   */
+  @SubscribeMessage('create_file')
+  handleCreateFile(client: Socket, payload: FileOperationRequest) {
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return {
+        event: 'error',
+        data: { message: FILE_ERROR_MESSAGES.NO_SESSION },
+      };
+    }
+
+    if (!payload?.filePath) {
+      return {
+        event: 'error',
+        data: { message: '파일 경로가 필요합니다' },
+      };
+    }
+
+    console.log(
+      `✨ 파일 생성 요청: ${payload.filePath} (${payload.isDirectory ? '폴더' : '파일'})`,
+    );
+
+    const result = this.fileService.createFile(
+      session.projectPath,
+      payload.filePath,
+      payload.isDirectory || false,
+      payload.content,
+    );
+
+    return { event: 'file_operation_result', data: result };
+  }
+
+  /**
+   * 파일/폴더 삭제
+   */
+  @SubscribeMessage('delete_file')
+  handleDeleteFile(client: Socket, payload: FileOperationRequest) {
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return {
+        event: 'error',
+        data: { message: FILE_ERROR_MESSAGES.NO_SESSION },
+      };
+    }
+
+    if (!payload?.filePath) {
+      return {
+        event: 'error',
+        data: { message: '파일 경로가 필요합니다' },
+      };
+    }
+
+    console.log(`🗑️ 파일 삭제 요청: ${payload.filePath}`);
+
+    const result = this.fileService.deleteFile(
+      session.projectPath,
+      payload.filePath,
+    );
+
+    return { event: 'file_operation_result', data: result };
+  }
+
+  /**
+   * 파일/폴더 이름 변경
+   */
+  @SubscribeMessage('rename_file')
+  handleRenameFile(client: Socket, payload: FileOperationRequest) {
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return {
+        event: 'error',
+        data: { message: FILE_ERROR_MESSAGES.NO_SESSION },
+      };
+    }
+
+    if (!payload?.filePath || !payload?.newName) {
+      return {
+        event: 'error',
+        data: { message: '파일 경로와 새 이름이 필요합니다' },
+      };
+    }
+
+    console.log(
+      `✏️ 파일 이름 변경 요청: ${payload.filePath} → ${payload.newName}`,
+    );
+
+    const result = this.fileService.renameFile(
+      session.projectPath,
+      payload.filePath,
+      payload.newName,
+    );
+
+    return { event: 'file_operation_result', data: result };
   }
 
   /**
