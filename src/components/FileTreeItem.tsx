@@ -21,6 +21,8 @@ interface FileTreeItemProps {
   onFolderPress: (item: FileEntry) => void;
   /** 파일 클릭 핸들러 */
   onFilePress: (item: FileEntry) => void;
+  /** 길게 누르기 핸들러 (파일 관리 메뉴용) */
+  onLongPress?: (item: FileEntry) => void;
 }
 
 /**
@@ -74,6 +76,7 @@ function FileTreeItem({
   level,
   onFolderPress,
   onFilePress,
+  onLongPress,
 }: FileTreeItemProps) {
   // 폴더/파일 클릭 핸들러
   const handlePress = useCallback(() => {
@@ -106,6 +109,8 @@ function FileTreeItem({
       <TouchableOpacity
         style={[styles.item, { paddingLeft }]}
         onPress={handlePress}
+        onLongPress={() => onLongPress?.(item)}
+        delayLongPress={500}
         activeOpacity={0.6}
       >
         {/* 펼침 화살표 */}
@@ -138,6 +143,7 @@ function FileTreeItem({
               level={level + 1}
               onFolderPress={onFolderPress}
               onFilePress={onFilePress}
+              onLongPress={onLongPress}
             />
           ))}
         </View>

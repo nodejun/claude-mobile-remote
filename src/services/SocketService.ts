@@ -11,6 +11,16 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 type StatusListener = (status: ConnectionStatus) => void;
 type MessageListener = (data: unknown) => void;
 
+// 파일 작업 결과 타입
+export interface FileOperationResult {
+  success: boolean;
+  filePath?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private statusListeners: StatusListener[] = [];
@@ -271,6 +281,115 @@ class SocketService {
       this.socket.once('error', (data: { message: string }) => {
         clearTimeout(timeout);
         resolve({ success: false, error: data.message });
+      });
+    });
+  }
+
+  /**
+   * 파일/폴더 생성
+   */
+  async createFile(
+    filePath: string,
+    isDirectory: boolean,
+    content?: string
+  ): Promise<FileOperationResult> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({
+          success: false,
+          error: { code: 'NO_CONNECTION', message: '연결되지 않음' },
+        });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({
+          success: false,
+          error: { code: 'TIMEOUT', message: '응답 시간 초과' },
+        });
+      }, 10000);
+
+      this.socket.emit('create_file', { filePath, isDirectory, content });
+      this.socket.once('file_operation_result', (data: FileOperationResult) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({
+          success: false,
+          error: { code: 'SERVER_ERROR', message: data.message },
+        });
+      });
+    });
+  }
+
+  /**
+   * 파일/폴더 삭제
+   */
+  async deleteFile(filePath: string): Promise<FileOperationResult> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({
+          success: false,
+          error: { code: 'NO_CONNECTION', message: '연결되지 않음' },
+        });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({
+          success: false,
+          error: { code: 'TIMEOUT', message: '응답 시간 초과' },
+        });
+      }, 10000);
+
+      this.socket.emit('delete_file', { filePath });
+      this.socket.once('file_operation_result', (data: FileOperationResult) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({
+          success: false,
+          error: { code: 'SERVER_ERROR', message: data.message },
+        });
+      });
+    });
+  }
+
+  /**
+   * 파일/폴더 이름 변경
+   */
+  async renameFile(filePath: string, newName: string): Promise<FileOperationResult> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({
+          success: false,
+          error: { code: 'NO_CONNECTION', message: '연결되지 않음' },
+        });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({
+          success: false,
+          error: { code: 'TIMEOUT', message: '응답 시간 초과' },
+        });
+      }, 10000);
+
+      this.socket.emit('rename_file', { filePath, newName });
+      this.socket.once('file_operation_result', (data: FileOperationResult) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({
+          success: false,
+          error: { code: 'SERVER_ERROR', message: data.message },
+        });
       });
     });
   }
