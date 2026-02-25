@@ -18,7 +18,10 @@ import type {
   ClaudeUserResponse,
 } from '#interfaces/claude.interface';
 import type { ChangeActionPayload } from '#interfaces/changes.interface';
-import type { FileOperationRequest } from '#interfaces/file.interface';
+import type {
+  FileOperationRequest,
+  SearchRequest,
+} from '#interfaces/file.interface';
 
 /**
  * WebSocket 이벤트 게이트웨이
@@ -319,6 +322,42 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     return { event: 'file_operation_result', data: result };
+  }
+
+  /**
+   * 파일 검색 (파일명 / 내용)
+   */
+  @SubscribeMessage('search_files')
+  handleSearchFiles(client: Socket, payload: SearchRequest) {
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return {
+        event: 'error',
+        data: { message: FILE_ERROR_MESSAGES.NO_SESSION },
+      };
+    }
+
+    if (!payload?.query || !payload?.type) {
+      return {
+        event: 'error',
+        data: { message: '검색어와 검색 타입이 필요합니다' },
+      };
+    }
+
+    console.log(`🔍 검색 요청: "${payload.query}" (${payload.type})`);
+
+    try {
+      const result = this.fileService.searchFiles(session.projectPath, payload);
+      return { event: 'search_result', data: result };
+    } catch (error) {
+      console.error('❌ 검색 실패:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      return {
+        event: 'error',
+        data: { message: `검색 실패: ${errorMessage}` },
+      };
+    }
   }
 
   /**

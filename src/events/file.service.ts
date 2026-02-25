@@ -10,6 +10,9 @@ import {
   SaveFileResult,
   FileOperationResult,
   FileOperationError,
+  SearchRequest,
+  SearchMatch,
+  SearchResult,
 } from '#interfaces/file.interface';
 
 /**
@@ -450,6 +453,191 @@ export class FileService {
               : '알 수 없는 오류가 발생했습니다',
         },
       };
+    }
+  }
+
+  /**
+   * 파일 검색 (파일명 또는 내용)
+   * @param basePath - 프로젝트 루트 경로
+   * @param request - 검색 요청 (query, type, path)
+   * @returns 검색 결과
+   */
+  searchFiles(basePath: string, request: SearchRequest): SearchResult {
+    const { query, type, path: searchPath } = request;
+    const startPath = searchPath
+      ? path.resolve(basePath, searchPath)
+      : basePath;
+
+    // 보안 검증
+    if (!this.validatePath(basePath, startPath)) {
+      return { query, type, results: [], totalCount: 0 };
+    }
+
+    const matches: SearchMatch[] = [];
+    const MAX_RESULTS = 50; // 결과 수 제한 (모바일 성능 고려)
+    const lowerQuery = query.toLowerCase();
+
+    if (type === 'filename') {
+      this.searchByFileName(
+        basePath,
+        startPath,
+        lowerQuery,
+        matches,
+        MAX_RESULTS,
+      );
+    } else {
+      this.searchByContent(
+        basePath,
+        startPath,
+        lowerQuery,
+        matches,
+        MAX_RESULTS,
+      );
+    }
+
+    return {
+      query,
+      type,
+      results: matches,
+      totalCount: matches.length,
+    };
+  }
+
+  /**
+   * 파일명 검색 (재귀)
+   * 폴더를 순회하며 이름에 검색어가 포함된 파일/폴더를 찾음
+   */
+  private searchByFileName(
+    basePath: string,
+    currentPath: string,
+    lowerQuery: string,
+    matches: SearchMatch[],
+    maxResults: number,
+  ): void {
+    if (matches.length >= maxResults) return;
+
+    try {
+      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+      const filtered = this.filterEntries(entries);
+
+      for (const entry of filtered) {
+        if (matches.length >= maxResults) return;
+
+        const fullPath = path.join(currentPath, entry.name);
+
+        // 파일명에 검색어 포함 여부 (대소문자 무시)
+        if (entry.name.toLowerCase().includes(lowerQuery)) {
+          matches.push({
+            name: entry.name,
+            relativePath: path.relative(basePath, fullPath),
+            isDirectory: entry.isDirectory(),
+          });
+        }
+
+        // 폴더면 재귀 탐색
+        if (entry.isDirectory()) {
+          this.searchByFileName(
+            basePath,
+            fullPath,
+            lowerQuery,
+            matches,
+            maxResults,
+          );
+        }
+      }
+    } catch {
+      // 접근 불가 디렉토리 무시
+    }
+  }
+
+  /**
+   * 파일 내용 검색 (재귀)
+   * 폴더를 순회하며 파일 내용에 검색어가 포함된 파일을 찾음
+   */
+  private searchByContent(
+    basePath: string,
+    currentPath: string,
+    lowerQuery: string,
+    matches: SearchMatch[],
+    maxResults: number,
+  ): void {
+    if (matches.length >= maxResults) return;
+
+    try {
+      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+      const filtered = this.filterEntries(entries);
+
+      for (const entry of filtered) {
+        if (matches.length >= maxResults) return;
+
+        const fullPath = path.join(currentPath, entry.name);
+
+        if (entry.isDirectory()) {
+          // 폴더면 재귀 탐색
+          this.searchByContent(
+            basePath,
+            fullPath,
+            lowerQuery,
+            matches,
+            maxResults,
+          );
+        } else {
+          // 파일이면 내용 검색
+          this.searchFileContent(basePath, fullPath, lowerQuery, matches);
+        }
+      }
+    } catch {
+      // 접근 불가 디렉토리 무시
+    }
+  }
+
+  /**
+   * 단일 파일 내용 검색
+   * 바이너리 파일은 건너뛰고, 텍스트 파일만 검색
+   */
+  private searchFileContent(
+    basePath: string,
+    filePath: string,
+    lowerQuery: string,
+    matches: SearchMatch[],
+  ): void {
+    try {
+      const stats = fs.statSync(filePath);
+
+      // 크기 제한 (1MB 초과 파일 무시)
+      if (stats.size > FILE_CONFIG.MAX_FILE_SIZE) return;
+
+      const content = fs.readFileSync(filePath, FILE_CONFIG.DEFAULT_ENCODING);
+
+      // 바이너리 파일 감지 (null 바이트 포함 여부)
+      if (content.includes('\0')) return;
+
+      const lines = content.split('\n');
+      const lineMatches: { line: number; text: string }[] = [];
+      const MAX_LINE_PREVIEW = 120; // 줄 미리보기 최대 길이
+      const MAX_MATCHES_PER_FILE = 5; // 파일당 최대 매치 수
+
+      for (let i = 0; i < lines.length; i++) {
+        if (lineMatches.length >= MAX_MATCHES_PER_FILE) break;
+
+        if (lines[i].toLowerCase().includes(lowerQuery)) {
+          lineMatches.push({
+            line: i + 1,
+            text: lines[i].trim().substring(0, MAX_LINE_PREVIEW),
+          });
+        }
+      }
+
+      if (lineMatches.length > 0) {
+        matches.push({
+          name: path.basename(filePath),
+          relativePath: path.relative(basePath, filePath),
+          isDirectory: false,
+          matches: lineMatches,
+        });
+      }
+    } catch {
+      // 읽기 실패 파일 무시
     }
   }
 }
