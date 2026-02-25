@@ -393,6 +393,48 @@ class SocketService {
       });
     });
   }
+  /**
+   * 파일 검색
+   * @param query - 검색어
+   * @param type - 검색 타입 (filename: 파일명, content: 내용)
+   * @param searchPath - 검색 시작 경로 (선택)
+   */
+  async searchFiles(
+    query: string,
+    type: 'filename' | 'content',
+    searchPath?: string
+  ): Promise<{
+    query: string;
+    type: 'filename' | 'content';
+    results: Array<{
+      name: string;
+      relativePath: string;
+      isDirectory: boolean;
+      matches?: { line: number; text: string }[];
+    }>;
+    totalCount: number;
+  }> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({ query, type, results: [], totalCount: 0 });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ query, type, results: [], totalCount: 0 });
+      }, 15000); // 내용 검색은 오래 걸릴 수 있으므로 15초
+
+      this.socket.emit('search_files', { query, type, path: searchPath });
+      this.socket.once('search_result', (data) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      this.socket.once('error', () => {
+        clearTimeout(timeout);
+        resolve({ query, type, results: [], totalCount: 0 });
+      });
+    });
+  }
 }
 
 // 싱글톤 인스턴스

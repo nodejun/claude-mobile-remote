@@ -28,7 +28,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useConnection } from '../hooks';
 import { socketService } from '../services';
-import { FileTreeItem } from '../components';
+import { FileTreeItem, SearchModal } from '../components';
 import type { FileEntry, FileTreeResult } from '../types/file';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -58,6 +58,7 @@ export default function FilesScreen() {
   const [createPath, setCreatePath] = useState<string>(''); // 생성 위치 (빈 문자열 = 루트)
   const [isOptionModalVisible, setIsOptionModalVisible] = useState(false); // 옵션 모달
   const [selectedItem, setSelectedItem] = useState<FileEntry | null>(null); // 선택된 파일/폴더
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false); // 검색 모달
 
   /**
    * 파일 트리 요청
@@ -184,6 +185,56 @@ export default function FilesScreen() {
       fileName: item.name,
     });
   }, [navigation]);
+
+  /**
+   * 검색 결과에서 파일 클릭 → 파일 뷰어로 이동
+   */
+  const handleSearchFilePress = useCallback(
+    (relativePath: string, fileName: string) => {
+      navigation.navigate('FileViewer', {
+        filePath: relativePath,
+        fileName,
+      });
+    },
+    [navigation]
+  );
+
+  /**
+   * 검색 결과에서 폴더 클릭 → 해당 폴더까지 자동 펼침
+   * 경로의 모든 상위 폴더를 expandedPaths에 추가하면
+   * 기존 file_tree 리스너의 체인 펼침 로직이 자동으로 처리
+   *
+   * 예: "src/screens" 클릭 시
+   *   → expandedPaths에 "src", "src/screens" 추가
+   *   → 루트 새로고침 → src 자동 펼침 → src/screens 자동 펼침
+   */
+  const handleSearchFolderPress = useCallback(
+    (relativePath: string) => {
+      // Windows(\)와 Unix(/) 경로 구분자 모두 처리
+      // "src\screens\auth" 또는 "src/screens/auth"
+      //   → ["src", "src\screens", "src\screens\auth"] (원본 구분자 유지)
+      const separator = relativePath.includes('\\') ? '\\' : '/';
+      const parts = relativePath.split(separator);
+      const pathsToExpand: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        pathsToExpand.push(parts.slice(0, i + 1).join(separator));
+      }
+
+      // expandedPaths에 일괄 추가
+      pathsToExpand.forEach((p) => expandedPathsRef.current.add(p));
+      setExpandedPaths((prev) => {
+        const next = new Set(prev);
+        pathsToExpand.forEach((p) => next.add(p));
+        return next;
+      });
+
+      // 루트부터 새로고침 → 체인 반응으로 자동 펼침
+      setRootPath('');
+      rootPathRef.current = '';
+      requestFileTree();
+    },
+    [requestFileTree]
+  );
 
   /**
    * 새로고침 핸들러
@@ -509,6 +560,12 @@ export default function FilesScreen() {
       <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}>
         <Text style={styles.headerTitle}>📁 파일 탐색기</Text>
         <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => setIsSearchModalVisible(true)}
+          >
+            <Text style={styles.searchButtonText}>🔍</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
             <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
@@ -635,6 +692,14 @@ export default function FilesScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* 검색 모달 */}
+      <SearchModal
+        visible={isSearchModalVisible}
+        onClose={() => setIsSearchModalVisible(false)}
+        onFilePress={handleSearchFilePress}
+        onFolderPress={handleSearchFolderPress}
+      />
 
       {/* 옵션 모달 (길게 누르기 메뉴) */}
       <Modal
@@ -794,6 +859,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  searchButton: {
+    padding: 8,
+  },
+  searchButtonText: {
+    fontSize: 20,
   },
   addButton: {
     padding: 8,

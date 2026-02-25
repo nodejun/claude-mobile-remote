@@ -63,3 +63,36 @@ export interface SaveFileResult {
   /** 저장된 파일 크기 */
   size: number;
 }
+
+/**
+ * 검색 매치 항목
+ */
+export interface SearchMatch {
+  /** 파일 이름 */
+  name: string;
+  /** 프로젝트 루트 기준 상대 경로 */
+  relativePath: string;
+  /** 디렉토리 여부 */
+  isDirectory: boolean;
+  /** 매칭된 라인 목록 (content 검색 시) */
+  matches?: {
+    /** 줄 번호 */
+    line: number;
+    /** 해당 줄 내용 (미리보기) */
+    text: string;
+  }[];
+}
+
+/**
+ * 검색 결과
+ */
+export interface SearchResult {
+  /** 검색어 */
+  query: string;
+  /** 검색 타입 */
+  type: 'filename' | 'content';
+  /** 매칭 결과 목록 */
+  results: SearchMatch[];
+  /** 전체 매칭 수 */
+  totalCount: number;
+}
