@@ -26,7 +26,7 @@ import CodeHighlighter from 'react-native-code-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 import type { RootStackParamList } from '../navigation/types';
-import { socketService } from '../services';
+import { socketService, storageService } from '../services';
 import type { FileContentResult } from '../types/file';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FileViewer'>;
@@ -53,6 +53,16 @@ export default function FileViewerScreen({ navigation, route }: Props) {
 
   // TextInput ref (포커스 제어용)
   const textInputRef = useRef<TextInput>(null);
+
+  // 설정에서 불러온 글꼴 크기
+  const [codeFontSize, setCodeFontSize] = useState<number>(13);
+
+  // 설정에서 글꼴 크기 로드
+  useEffect(() => {
+    storageService.getSettings().then((settings) => {
+      setCodeFontSize(settings.codeFontSize);
+    });
+  }, []);
 
   /**
    * 파일 크기 포맷팅
@@ -289,7 +299,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
       {isEditMode ? (
         <TextInput
           ref={textInputRef}
-          style={styles.editorTextInput}
+          style={[styles.editorTextInput, { fontSize: codeFontSize, lineHeight: codeFontSize * 1.54 }]}
           value={editContent}
           onChangeText={setEditContent}
           multiline
@@ -311,7 +321,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
               hljsStyle={atomOneDark}
               language={language}
               customStyle={styles.codeBlock}
-              textStyle={styles.codeText}
+              textStyle={[styles.codeText, { fontSize: codeFontSize }]}
               scrollViewProps={{
                 horizontal: true,
                 contentContainerStyle: {

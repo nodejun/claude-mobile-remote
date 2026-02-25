@@ -15,11 +15,16 @@ import {
   ActivityIndicator,
   StatusBar,
 } from "react-native";
-import { socketService } from "../services";
+import { useFocusEffect } from "@react-navigation/native";
+import { socketService, storageService } from "../services";
 import { MarkdownMessage } from "../components";
+import { useTheme } from "../theme";
 import type { ChatMessage } from "../types/chat";
 
 export default function ChatScreen() {
+  // 테마 색상
+  const { colors } = useTheme();
+
   // 메시지 목록 상태
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -37,6 +42,72 @@ export default function ChatScreen() {
 
   // 스크롤 throttle용 ref
   const lastScrollTimeRef = useRef<number>(0);
+
+  // 저장 디바운스 타이머 ref
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 초기 로드 여부 (저장 루프 방지)
+  const isInitialLoadRef = useRef(true);
+
+  // 설정에서 불러온 글꼴 크기
+  const [chatFontSize, setChatFontSize] = useState<number>(16);
+
+  /**
+   * 화면에 포커스될 때마다 글꼴 크기 설정 다시 로드
+   * (설정 탭에서 변경 후 돌아올 때 즉시 반영)
+   */
+  useFocusEffect(
+    useCallback(() => {
+      storageService.getSettings().then((settings) => {
+        setChatFontSize(settings.codeFontSize);
+      });
+    }, []),
+  );
+
+  /**
+   * 앱 시작 시 저장된 대화 기록 복구
+   */
+  useEffect(() => {
+    const loadSavedMessages = async () => {
+      const saved = await storageService.loadChatMessages();
+      if (saved.length > 0) {
+        setMessages(saved);
+        console.log(`✅ 저장된 대화 ${saved.length}개 복구됨`);
+        // 복구 후 스크롤
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: false });
+        }, 100);
+      }
+      // 초기 로드 완료 표시
+      isInitialLoadRef.current = false;
+    };
+    loadSavedMessages();
+  }, []);
+
+  /**
+   * 메시지 변경 시 AsyncStorage에 자동 저장 (디바운스 500ms)
+   * streaming 상태 메시지는 StorageService에서 필터링됨
+   */
+  useEffect(() => {
+    // 초기 로드 중이면 저장하지 않음 (복구 → 저장 루프 방지)
+    if (isInitialLoadRef.current) return;
+
+    // 기존 타이머 취소
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // 500ms 후 저장
+    saveTimerRef.current = setTimeout(() => {
+      storageService.saveChatMessages(messages);
+    }, 500);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [messages]);
 
   /**
    * 마지막 streaming/sending 상태의 assistant 메시지를 찾는 헬퍼 함수
@@ -56,7 +127,7 @@ export default function ChatScreen() {
       }
       return undefined;
     },
-    []
+    [],
   );
 
   /**
@@ -81,7 +152,7 @@ export default function ChatScreen() {
                   content: msg.content + data.text,
                   status: "streaming" as const,
                 }
-              : msg
+              : msg,
           );
         });
 
@@ -93,7 +164,7 @@ export default function ChatScreen() {
             scrollViewRef.current?.scrollToEnd({ animated: false });
           }, 50);
         }
-      }
+      },
     );
 
     // 응답 완료
@@ -106,7 +177,7 @@ export default function ChatScreen() {
           return prev.map((msg) =>
             msg.id === pendingAssistant.id
               ? { ...msg, status: "complete" as const }
-              : msg
+              : msg,
           );
         }
 
@@ -137,7 +208,7 @@ export default function ChatScreen() {
                     content: `오류: ${data.message}`,
                     status: "error" as const,
                   }
-                : msg
+                : msg,
             );
           }
 
@@ -146,7 +217,7 @@ export default function ChatScreen() {
 
         setIsLoading(false);
         currentAssistantIdRef.current = null;
-      }
+      },
     );
 
     // 응답 중단 완료
@@ -158,7 +229,7 @@ export default function ChatScreen() {
         setMessages((prev) => {
           // 완료된 assistant 메시지가 있는지 확인 (첫 번째 프롬프트인지 판단)
           const hasCompletedAssistant = prev.some(
-            (msg) => msg.role === "assistant" && msg.status === "complete"
+            (msg) => msg.role === "assistant" && msg.status === "complete",
           );
 
           // 첫 번째 프롬프트에서 중단된 경우 → 세션 리셋
@@ -179,7 +250,7 @@ export default function ChatScreen() {
                     content: msg.content + "\n\n*(응답 중단됨)*",
                     status: "complete" as const,
                   }
-                : msg
+                : msg,
             );
           }
 
@@ -188,7 +259,7 @@ export default function ChatScreen() {
 
         setIsLoading(false);
         currentAssistantIdRef.current = null;
-      }
+      },
     );
 
     // 세션 종료 완료
@@ -198,14 +269,15 @@ export default function ChatScreen() {
         console.log("🔄 세션 종료 완료:", data);
 
         if (data.success) {
-          // 메시지 초기화
+          // 메시지 초기화 (메모리 + AsyncStorage)
           setMessages([]);
+          storageService.clearChatMessages();
           currentAssistantIdRef.current = null;
           console.log("✅ 새 대화가 시작되었습니다. 세션:", data.newSessionId);
         } else {
           console.error("❌ 세션 종료 실패:", data.reason);
         }
-      }
+      },
     );
 
     // 컴포넌트 언마운트 시 리스너 해제
@@ -290,73 +362,119 @@ export default function ChatScreen() {
   /**
    * 메시지 아이템 렌더링
    */
-  const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
-    const isUser = item.role === "user";
-    const isStreaming =
-      item.status === "streaming" || item.status === "sending";
+  const renderMessage = useCallback(
+    ({ item }: { item: ChatMessage }) => {
+      const isUser = item.role === "user";
+      const isStreaming =
+        item.status === "streaming" || item.status === "sending";
 
-    return (
-      <View
-        style={[
-          styles.messageBubble,
-          isUser ? styles.userBubble : styles.assistantBubble,
-        ]}
-      >
-        {/* 역할 라벨 */}
-        <Text
+      return (
+        <View
           style={[
-            styles.roleLabel,
-            isUser ? styles.userLabel : styles.assistantLabel,
+            styles.messageBubble,
+            isUser
+              ? [styles.userBubble, { backgroundColor: colors.chatUserBubble }]
+              : [
+                  styles.assistantBubble,
+                  {
+                    backgroundColor: colors.chatAssistantBubble,
+                    shadowColor: colors.shadow,
+                    shadowOpacity: colors.shadowOpacity,
+                  },
+                ],
           ]}
         >
-          {isUser ? "나" : "Claude"}
-        </Text>
-
-        {/* 메시지 내용 */}
-        {item.status === "sending" && !item.content ? (
-          <ActivityIndicator
-            size="small"
-            color="#007AFF"
-            style={{ marginVertical: 8 }}
-          />
-        ) : isUser ? (
-          // 사용자 메시지: 평문 텍스트
-          <Text style={[styles.messageText, styles.userText]}>
-            {item.content}
+          {/* 역할 라벨 */}
+          <Text
+            style={[
+              styles.roleLabel,
+              isUser
+                ? [styles.userLabel, { color: colors.chatUserLabel }]
+                : [styles.assistantLabel, { color: colors.primary }],
+            ]}
+          >
+            {isUser ? "나" : "Claude"}
           </Text>
-        ) : (
-          // AI 메시지: 마크다운 렌더링
-          <MarkdownMessage content={item.content} isStreaming={isStreaming} />
-        )}
 
-        {/* 시간 표시 (스트리밍 중이 아닐 때만) */}
-        {!isStreaming && (
-          <Text style={styles.timestamp}>
-            {new Date(item.timestamp).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        )}
-      </View>
-    );
-  }, []);
+          {/* 메시지 내용 */}
+          {item.status === "sending" && !item.content ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+              style={{ marginVertical: 8 }}
+            />
+          ) : isUser ? (
+            // 사용자 메시지: 평문 텍스트
+            <Text
+              style={[
+                styles.messageText,
+                styles.userText,
+                {
+                  color: colors.textOnPrimary,
+                  fontSize: chatFontSize,
+                  lineHeight: Math.round(chatFontSize * 1.4),
+                },
+              ]}
+            >
+              {item.content}
+            </Text>
+          ) : (
+            // AI 메시지: 마크다운 렌더링
+            <MarkdownMessage
+              content={item.content}
+              isStreaming={isStreaming}
+              fontSize={chatFontSize}
+            />
+          )}
+
+          {/* 시간 표시 (스트리밍 중이 아닐 때만) */}
+          {!isStreaming && (
+            <Text style={[styles.timestamp, { color: colors.chatTimestamp }]}>
+              {new Date(item.timestamp).toLocaleTimeString("ko-KR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+          )}
+        </View>
+      );
+    },
+    [chatFontSize, colors],
+  );
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* 헤더 영역 */}
       {messages.length > 0 && (
-        <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: (StatusBar.currentHeight || 24) + 8,
+              borderBottomColor: colors.border,
+              backgroundColor: colors.surface,
+            },
+          ]}
+        >
           <TouchableOpacity
-            style={styles.newChatButton}
+            style={[
+              styles.newChatButton,
+              { backgroundColor: colors.surfaceSecondary },
+            ]}
             onPress={handleEndSession}
             disabled={isLoading}
           >
-            <Text style={[styles.newChatButtonText, isLoading && styles.newChatButtonDisabled]}>
+            <Text
+              style={[
+                styles.newChatButtonText,
+                { color: colors.primary },
+                isLoading && { color: colors.textTertiary },
+              ]}
+            >
               🔄 새 대화
             </Text>
           </TouchableOpacity>
@@ -372,25 +490,36 @@ export default function ChatScreen() {
       >
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>💬 Claude와 대화를 시작하세요!</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              💬 Claude와 대화를 시작하세요!
+            </Text>
           </View>
         ) : (
           messages.map((item) => (
-            <View key={item.id}>
-              {renderMessage({ item })}
-            </View>
+            <View key={item.id}>{renderMessage({ item })}</View>
           ))
         )}
       </ScrollView>
 
       {/* 입력 영역 */}
-      <View style={styles.inputContainer}>
+      <View
+        style={[
+          styles.inputContainer,
+          { backgroundColor: colors.surface, borderTopColor: colors.border },
+        ]}
+      >
         <TextInput
-          style={styles.textInput}
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: colors.chatInputBackground,
+              color: colors.textPrimary,
+            },
+          ]}
           value={inputText}
           onChangeText={setInputText}
           placeholder="메시지를 입력하세요..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textTertiary}
           multiline
           maxLength={4000}
           editable={!isLoading}
@@ -398,22 +527,31 @@ export default function ChatScreen() {
         {isLoading ? (
           // 로딩 중: 중단 버튼
           <TouchableOpacity
-            style={[styles.sendButton, styles.cancelButton]}
+            style={[styles.sendButton, { backgroundColor: colors.danger }]}
             onPress={handleCancel}
           >
-            <Text style={styles.sendButtonText}>중단</Text>
+            <Text
+              style={[styles.sendButtonText, { color: colors.textOnPrimary }]}
+            >
+              중단
+            </Text>
           </TouchableOpacity>
         ) : (
           // 평상시: 전송 버튼
           <TouchableOpacity
             style={[
               styles.sendButton,
-              !inputText.trim() && styles.sendButtonDisabled,
+              { backgroundColor: colors.primary },
+              !inputText.trim() && { backgroundColor: colors.textTertiary },
             ]}
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Text style={styles.sendButtonText}>전송</Text>
+            <Text
+              style={[styles.sendButtonText, { color: colors.textOnPrimary }]}
+            >
+              전송
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -424,7 +562,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
 
   // 헤더 영역
@@ -434,22 +571,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    backgroundColor: "#fff",
   },
   newChatButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: "#f0f0f0",
   },
   newChatButtonText: {
     fontSize: 14,
-    color: "#007AFF",
     fontWeight: "500",
-  },
-  newChatButtonDisabled: {
-    color: "#999",
   },
 
   // 스크롤 뷰
@@ -471,7 +601,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: "#666",
   },
 
   // 메시지 버블 (공통)
@@ -485,18 +614,14 @@ const styles = StyleSheet.create({
   // 사용자 메시지 버블
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#007AFF",
     borderBottomRightRadius: 4,
   },
 
   // AI 메시지 버블
   assistantBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 4,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
@@ -507,34 +632,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
-  userLabel: {
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  assistantLabel: {
-    color: "#007AFF",
-  },
+  userLabel: {},
+  assistantLabel: {},
 
   // 메시지 텍스트
   messageText: {
     fontSize: 16,
     lineHeight: 22,
   },
-  userText: {
-    color: "#FFFFFF",
-  },
-  assistantText: {
-    color: "#333333",
-  },
-
-  // 스트리밍 커서
-  cursor: {
-    color: "#007AFF",
-  },
+  userText: {},
 
   // 시간 표시
   timestamp: {
     fontSize: 11,
-    color: "rgba(0, 0, 0, 0.4)",
     marginTop: 6,
     alignSelf: "flex-end",
   },
@@ -544,9 +654,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     padding: 12,
-    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
   },
 
   // 텍스트 입력
@@ -556,10 +664,8 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#F0F0F0",
     borderRadius: 20,
     fontSize: 16,
-    color: "#333",
   },
 
   // 전송 버튼
@@ -567,17 +673,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#007AFF",
     borderRadius: 20,
   },
-  sendButtonDisabled: {
-    backgroundColor: "#B0B0B0",
-  },
-  cancelButton: {
-    backgroundColor: "#FF3B30",
-  },
   sendButtonText: {
-    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },

@@ -18,6 +18,7 @@ import type { RouteProp } from '@react-navigation/native';
 
 import { socketService } from '../services';
 import { CodeBlock, DiffCodeLine } from '../components';
+import { useTheme } from '../theme';
 import type { FileChange, DiffHunk } from '../types/changes';
 
 // 라우트 파라미터 타입
@@ -31,6 +32,7 @@ export default function ChangeDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<ChangeDetailRouteParams, 'ChangeDetail'>>();
   const { change } = route.params;
+  const { colors } = useTheme();
 
   // 상태
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>(
@@ -321,7 +323,7 @@ export default function ChangeDetailScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← 뒤로</Text>
+          <Text style={[styles.backButtonText, { color: colors.primary }]}>← 뒤로</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.headerIcon}>{getChangeIcon(change.type)}</Text>

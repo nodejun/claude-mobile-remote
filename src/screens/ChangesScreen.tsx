@@ -21,6 +21,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useConnection } from '../hooks';
 import { socketService } from '../services';
 import { CodeBlock } from '../components';
+import { useTheme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 import type {
   FileChange,
@@ -33,6 +34,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function ChangesScreen() {
   const { isConnected } = useConnection();
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
 
   // 상태
   const [changes, setChanges] = useState<FileChange[]>([]);
@@ -295,7 +297,7 @@ export default function ChangesScreen() {
     const hasDiff = item.hunks && item.hunks.length > 0;
 
     return (
-      <View style={styles.changeItem}>
+      <View style={[styles.changeItem, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         {/* 헤더 */}
         <View style={styles.changeHeader}>
           {/* 왼쪽: 아이콘 + 파일 정보 (클릭하면 확장/축소) */}
@@ -306,23 +308,23 @@ export default function ChangesScreen() {
           >
             <Text style={styles.changeIcon}>{getChangeIcon(item.type)}</Text>
             <View style={styles.changeInfo}>
-              <Text style={styles.filePath} numberOfLines={1}>
+              <Text style={[styles.filePath, { color: colors.textHeading }]} numberOfLines={1}>
                 {item.filePath}
               </Text>
               <View style={styles.changeMeta}>
-                <Text style={styles.changeType}>{getChangeLabel(item.type)}</Text>
+                <Text style={[styles.changeType, { color: colors.textSecondary }]}>{getChangeLabel(item.type)}</Text>
                 <Text style={styles.changeStats}>
                   {item.additions > 0 && (
-                    <Text style={styles.additions}>+{item.additions}</Text>
+                    <Text style={[styles.additions, { color: colors.success }]}>+{item.additions}</Text>
                   )}
                   {item.deletions > 0 && (
-                    <Text style={styles.deletions}> -{item.deletions}</Text>
+                    <Text style={[styles.deletions, { color: colors.danger }]}> -{item.deletions}</Text>
                   )}
                 </Text>
-                <Text style={styles.changeTime}>{formatTime(item.timestamp)}</Text>
+                <Text style={[styles.changeTime, { color: colors.textTertiary }]}>{formatTime(item.timestamp)}</Text>
               </View>
             </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+            <Text style={[styles.expandIcon, { color: colors.textTertiary }]}>{isExpanded ? '▼' : '▶'}</Text>
           </TouchableOpacity>
 
           {/* 오른쪽: 전체 보기 버튼 */}
@@ -406,16 +408,16 @@ export default function ChangesScreen() {
         {isPending && (
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.approveButton]}
+              style={[styles.actionButton, { backgroundColor: colors.approveBackground }]}
               onPress={() => handleApprove(item.id)}
             >
-              <Text style={styles.approveText}>✓ 승인</Text>
+              <Text style={[styles.approveText, { color: colors.approveText }]}>✓ 승인</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, styles.rejectButton]}
+              style={[styles.actionButton, { backgroundColor: colors.rejectBackground }]}
               onPress={() => handleReject(item.id)}
             >
-              <Text style={styles.rejectText}>✕ 거부</Text>
+              <Text style={[styles.rejectText, { color: colors.rejectText }]}>✕ 거부</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -427,8 +429,8 @@ export default function ChangesScreen() {
               style={[
                 styles.statusText,
                 item.status === 'approved'
-                  ? styles.approvedStatus
-                  : styles.rejectedStatus,
+                  ? { backgroundColor: colors.approveBackground, color: colors.approveText }
+                  : { backgroundColor: colors.rejectBackground, color: colors.rejectText },
               ]}
             >
               {item.status === 'approved' ? '✓ 승인됨' : '✕ 거부됨'}
@@ -442,9 +444,9 @@ export default function ChangesScreen() {
   // 연결 안됨
   if (!isConnected) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.disconnectedIcon}>🔌</Text>
-        <Text style={styles.disconnectedText}>PC에 연결되지 않았습니다</Text>
+        <Text style={[styles.disconnectedText, { color: colors.textSecondary }]}>PC에 연결되지 않았습니다</Text>
       </View>
     );
   }
@@ -452,9 +454,9 @@ export default function ChangesScreen() {
   // 로딩 중
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>변경사항 로딩 중...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>변경사항 로딩 중...</Text>
       </View>
     );
   }
@@ -462,26 +464,26 @@ export default function ChangesScreen() {
   // 에러
   if (error) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.errorIcon}>❌</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchChanges}>
-          <Text style={styles.retryText}>다시 시도</Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={fetchChanges}>
+          <Text style={[styles.retryText, { color: colors.textOnPrimary }]}>다시 시도</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 헤더 */}
       <View
-        style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}
+        style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}
       >
-        <Text style={styles.headerTitle}>📝 변경사항</Text>
+        <Text style={[styles.headerTitle, { color: colors.textHeading }]}>📝 변경사항</Text>
         {pendingCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{pendingCount}</Text>
+          <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+            <Text style={[styles.badgeText, { color: colors.textOnPrimary }]}>{pendingCount}</Text>
           </View>
         )}
       </View>
@@ -490,8 +492,8 @@ export default function ChangesScreen() {
       {changes.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyText}>변경사항이 없습니다</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyText, { color: colors.textPrimary }]}>변경사항이 없습니다</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Claude에게 파일 수정을 요청해보세요
           </Text>
         </View>
@@ -505,7 +507,7 @@ export default function ChangesScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor="#007AFF"
+              tintColor={colors.primary}
             />
           }
         />
@@ -517,13 +519,11 @@ export default function ChangesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
     padding: 20,
   },
   header: {
@@ -531,24 +531,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
   },
   badge: {
     marginLeft: 8,
-    backgroundColor: '#FF3B30',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   badgeText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -556,11 +551,9 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   changeItem: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -580,7 +573,6 @@ const styles = StyleSheet.create({
   filePath: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
     marginBottom: 4,
   },
   changeMeta: {
@@ -591,22 +583,18 @@ const styles = StyleSheet.create({
   },
   changeType: {
     fontSize: 12,
-    color: '#666',
   },
   changeStats: {
     fontSize: 12,
   },
   additions: {
-    color: '#34C759',
     fontWeight: '600',
   },
   deletions: {
-    color: '#FF3B30',
     fontWeight: '600',
   },
   changeTime: {
     fontSize: 12,
-    color: '#999',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -619,19 +607,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  approveButton: {
-    backgroundColor: '#E8F5E9',
-  },
-  rejectButton: {
-    backgroundColor: '#FFEBEE',
-  },
   approveText: {
-    color: '#2E7D32',
     fontWeight: '600',
     fontSize: 14,
   },
   rejectText: {
-    color: '#C62828',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -646,14 +626,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
-  approvedStatus: {
-    backgroundColor: '#E8F5E9',
-    color: '#2E7D32',
-  },
-  rejectedStatus: {
-    backgroundColor: '#FFEBEE',
-    color: '#C62828',
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -666,11 +638,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
     marginTop: 4,
   },
   disconnectedIcon: {
@@ -679,12 +649,10 @@ const styles = StyleSheet.create({
   },
   disconnectedText: {
     fontSize: 16,
-    color: '#666',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
   },
   errorIcon: {
     fontSize: 48,
@@ -692,25 +660,21 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#007AFF',
     borderRadius: 8,
   },
   retryText: {
-    color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  // Diff 관련 스타일
+  // Diff 관련 스타일 (다크 테마 유지 - 변경 금지)
   expandIcon: {
     fontSize: 12,
-    color: '#999',
     marginLeft: 8,
   },
   // 헤더 레이아웃 스타일

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import type { FileEntry } from '../types/file';
+import { useTheme } from '../theme';
 
 interface FileTreeItemProps {
   /** 파일/폴더 정보 */
@@ -78,6 +79,8 @@ function FileTreeItem({
   onFilePress,
   onLongPress,
 }: FileTreeItemProps) {
+  const { colors } = useTheme();
+
   // 폴더/파일 클릭 핸들러
   const handlePress = useCallback(() => {
     if (item.isDirectory) {
@@ -107,21 +110,21 @@ function FileTreeItem({
   return (
     <View>
       <TouchableOpacity
-        style={[styles.item, { paddingLeft }]}
+        style={[styles.item, { paddingLeft, borderBottomColor: colors.borderLight, backgroundColor: colors.surface }]}
         onPress={handlePress}
         onLongPress={() => onLongPress?.(item)}
         delayLongPress={500}
         activeOpacity={0.6}
       >
         {/* 펼침 화살표 */}
-        <Text style={styles.expandIcon}>{expandIcon}</Text>
+        <Text style={[styles.expandIcon, { color: colors.textSecondary }]}>{expandIcon}</Text>
 
         {/* 파일/폴더 아이콘 */}
         <Text style={styles.icon}>{icon}</Text>
 
         {/* 파일/폴더 이름 */}
         <Text
-          style={[styles.name, item.isDirectory && styles.directoryName]}
+          style={[styles.name, { color: colors.textPrimary }, item.isDirectory && styles.directoryName]}
           numberOfLines={1}
         >
           {item.name}
@@ -129,7 +132,7 @@ function FileTreeItem({
 
         {/* 로딩 인디케이터 (폴더 로딩 중) */}
         {item.isLoading && (
-          <ActivityIndicator size="small" color="#007AFF" style={styles.loader} />
+          <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
         )}
       </TouchableOpacity>
 
@@ -159,13 +162,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingRight: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
   },
   expandIcon: {
     width: 20,
     fontSize: 10,
-    color: '#666',
     textAlign: 'center',
   },
   icon: {
@@ -175,7 +175,6 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
   },
   directoryName: {
     fontWeight: '500',

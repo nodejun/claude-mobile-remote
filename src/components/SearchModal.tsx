@@ -16,6 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { socketService } from '../services';
+import { useTheme } from '../theme';
 import type { SearchMatch } from '../types/file';
 
 interface SearchModalProps {
@@ -38,6 +39,7 @@ export default function SearchModal({
   onFilePress,
   onFolderPress,
 }: SearchModalProps) {
+  const { colors } = useTheme();
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState<SearchType>('filename');
   const [results, setResults] = useState<SearchMatch[]>([]);
@@ -96,8 +98,8 @@ export default function SearchModal({
     const ext = item.name.split('.').pop()?.toLowerCase() || '';
     const icons: Record<string, string> = {
       ts: '📘', tsx: '⚛️', js: '📒', jsx: '⚛️',
-      py: '🐍', json: '📋', md: '📝', html: '🌐',
-      css: '🎨', yaml: '📋', yml: '📋',
+      py: '🐍', json: '⚙️', md: '📝', html: '🌐',
+      css: '🎨', yaml: '📐', yml: '📐',
     };
     return icons[ext] || '📄';
   };
@@ -108,7 +110,7 @@ export default function SearchModal({
   const renderItem = useCallback(
     ({ item }: { item: SearchMatch }) => (
       <TouchableOpacity
-        style={styles.resultItem}
+        style={[styles.resultItem, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}
         onPress={() => handleItemPress(item)}
         activeOpacity={0.6}
       >
@@ -116,10 +118,10 @@ export default function SearchModal({
         <View style={styles.resultHeader}>
           <Text style={styles.resultIcon}>{getIcon(item)}</Text>
           <View style={styles.resultInfo}>
-            <Text style={styles.resultName} numberOfLines={1}>
+            <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={1}>
               {item.name}
             </Text>
-            <Text style={styles.resultPath} numberOfLines={1}>
+            <Text style={[styles.resultPath, { color: colors.textTertiary }]} numberOfLines={1}>
               {item.relativePath}
             </Text>
           </View>
@@ -127,11 +129,11 @@ export default function SearchModal({
 
         {/* 내용 검색 시 매치된 라인 표시 */}
         {item.matches && item.matches.length > 0 && (
-          <View style={styles.matchesContainer}>
+          <View style={[styles.matchesContainer, { backgroundColor: colors.surfaceSecondary }]}>
             {item.matches.map((match, index) => (
               <View key={index} style={styles.matchLine}>
-                <Text style={styles.matchLineNumber}>{match.line}</Text>
-                <Text style={styles.matchLineText} numberOfLines={1}>
+                <Text style={[styles.matchLineNumber, { color: colors.primary }]}>{match.line}</Text>
+                <Text style={[styles.matchLineText, { color: colors.textSecondary }]} numberOfLines={1}>
                   {match.text}
                 </Text>
               </View>
@@ -140,7 +142,7 @@ export default function SearchModal({
         )}
       </TouchableOpacity>
     ),
-    [handleItemPress]
+    [handleItemPress, colors]
   );
 
   return (
@@ -154,30 +156,32 @@ export default function SearchModal({
       }}
     >
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* 헤더 */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔍 파일 검색</Text>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>🔍 파일 검색</Text>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
+            <Text style={[styles.closeButtonText, { color: colors.textSecondary }]}>✕</Text>
           </TouchableOpacity>
         </View>
 
         {/* 검색 타입 토글 */}
-        <View style={styles.typeToggle}>
+        <View style={[styles.typeToggle, { backgroundColor: colors.surface }]}>
           <TouchableOpacity
             style={[
               styles.typeButton,
-              searchType === 'filename' && styles.typeButtonActive,
+              { backgroundColor: colors.surfaceSecondary },
+              searchType === 'filename' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setSearchType('filename')}
           >
             <Text
               style={[
                 styles.typeButtonText,
-                searchType === 'filename' && styles.typeButtonTextActive,
+                { color: colors.textSecondary },
+                searchType === 'filename' && { color: colors.textOnPrimary },
               ]}
             >
               파일명
@@ -186,14 +190,16 @@ export default function SearchModal({
           <TouchableOpacity
             style={[
               styles.typeButton,
-              searchType === 'content' && styles.typeButtonActive,
+              { backgroundColor: colors.surfaceSecondary },
+              searchType === 'content' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setSearchType('content')}
           >
             <Text
               style={[
                 styles.typeButtonText,
-                searchType === 'content' && styles.typeButtonTextActive,
+                { color: colors.textSecondary },
+                searchType === 'content' && { color: colors.textOnPrimary },
               ]}
             >
               내용
@@ -202,16 +208,16 @@ export default function SearchModal({
         </View>
 
         {/* 검색 입력 */}
-        <View style={styles.searchBar}>
+        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TextInput
             ref={inputRef}
-            style={styles.searchInput}
+            style={[styles.searchInput, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary, color: colors.textPrimary }]}
             placeholder={
               searchType === 'filename'
                 ? '파일명을 입력하세요...'
                 : '검색할 내용을 입력하세요...'
             }
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textTertiary}
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}
@@ -222,15 +228,16 @@ export default function SearchModal({
           <TouchableOpacity
             style={[
               styles.searchButton,
-              (!query.trim() || isSearching) && styles.searchButtonDisabled,
+              { backgroundColor: colors.primary },
+              (!query.trim() || isSearching) && { backgroundColor: colors.textTertiary },
             ]}
             onPress={handleSearch}
             disabled={!query.trim() || isSearching}
           >
             {isSearching ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
             ) : (
-              <Text style={styles.searchButtonText}>검색</Text>
+              <Text style={[styles.searchButtonText, { color: colors.textOnPrimary }]}>검색</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -238,13 +245,13 @@ export default function SearchModal({
         {/* 검색 결과 */}
         {isSearching ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.searchingText}>검색 중...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.searchingText, { color: colors.textSecondary }]}>검색 중...</Text>
           </View>
         ) : hasSearched && results.length === 0 ? (
           <View style={styles.centerContainer}>
             <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>검색 결과가 없습니다</Text>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>검색 결과가 없습니다</Text>
           </View>
         ) : (
           <FlatList
@@ -255,7 +262,7 @@ export default function SearchModal({
             contentContainerStyle={results.length === 0 ? styles.emptyList : undefined}
             ListHeaderComponent={
               hasSearched && results.length > 0 ? (
-                <Text style={styles.resultCount}>
+                <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
                   {results.length}개 결과
                 </Text>
               ) : null
@@ -270,7 +277,6 @@ export default function SearchModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
@@ -279,14 +285,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   closeButton: {
     width: 32,
@@ -296,68 +299,48 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 20,
-    color: '#666',
   },
   // 검색 타입 토글
   typeToggle: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#fff',
     gap: 8,
   },
   typeButton: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
     alignItems: 'center',
-  },
-  typeButtonActive: {
-    backgroundColor: '#007AFF',
   },
   typeButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
-  },
-  typeButtonTextActive: {
-    color: '#fff',
   },
   // 검색바
   searchBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
     gap: 8,
   },
   searchInput: {
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 12,
     fontSize: 15,
-    backgroundColor: '#fafafa',
-    color: '#333',
   },
   searchButton: {
     height: 40,
     paddingHorizontal: 16,
-    backgroundColor: '#007AFF',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchButtonDisabled: {
-    backgroundColor: '#B0B0B0',
-  },
   searchButtonText: {
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -370,16 +353,13 @@ const styles = StyleSheet.create({
   },
   resultCount: {
     fontSize: 13,
-    color: '#666',
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   resultItem: {
-    backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   resultHeader: {
     flexDirection: 'row',
@@ -395,11 +375,9 @@ const styles = StyleSheet.create({
   resultName: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#333',
   },
   resultPath: {
     fontSize: 12,
-    color: '#888',
     marginTop: 2,
     fontFamily: 'monospace',
   },
@@ -407,7 +385,6 @@ const styles = StyleSheet.create({
   matchesContainer: {
     marginTop: 8,
     marginLeft: 28,
-    backgroundColor: '#f8f9fa',
     borderRadius: 6,
     padding: 8,
   },
@@ -419,7 +396,6 @@ const styles = StyleSheet.create({
   matchLineNumber: {
     width: 36,
     fontSize: 11,
-    color: '#007AFF',
     fontFamily: 'monospace',
     textAlign: 'right',
     marginRight: 8,
@@ -427,7 +403,6 @@ const styles = StyleSheet.create({
   matchLineText: {
     flex: 1,
     fontSize: 12,
-    color: '#555',
     fontFamily: 'monospace',
   },
   // 빈 상태 / 로딩
@@ -440,7 +415,6 @@ const styles = StyleSheet.create({
   searchingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
   },
   emptyIcon: {
     fontSize: 48,
@@ -448,6 +422,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
   },
 });

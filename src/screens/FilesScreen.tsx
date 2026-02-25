@@ -29,6 +29,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useConnection } from '../hooks';
 import { socketService } from '../services';
 import { FileTreeItem, SearchModal } from '../components';
+import { useTheme } from '../theme';
 import type { FileEntry, FileTreeResult } from '../types/file';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -37,6 +38,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function FilesScreen() {
   const { isConnected } = useConnection();
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
 
   // 파일 트리 상태
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -524,9 +526,9 @@ export default function FilesScreen() {
   // 연결 안됨 상태
   if (!isConnected) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.errorIcon}>🔌</Text>
-        <Text style={styles.errorText}>서버에 연결되지 않았습니다</Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>서버에 연결되지 않았습니다</Text>
       </View>
     );
   }
@@ -534,9 +536,9 @@ export default function FilesScreen() {
   // 로딩 상태
   if (isLoading && files.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>파일 트리 로딩 중...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>파일 트리 로딩 중...</Text>
       </View>
     );
   }
@@ -544,21 +546,24 @@ export default function FilesScreen() {
   // 에러 상태
   if (error && files.length === 0) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.errorIcon}>❌</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
-          <Text style={styles.retryButtonText}>다시 시도</Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={handleRefresh}
+        >
+          <Text style={[styles.retryButtonText, { color: colors.textOnPrimary }]}>다시 시도</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 헤더 */}
-      <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}>
-        <Text style={styles.headerTitle}>📁 파일 탐색기</Text>
+      <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>📁 파일 탐색기</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.searchButton}
@@ -576,9 +581,9 @@ export default function FilesScreen() {
       </View>
 
       {/* 현재 경로 표시 */}
-      <View style={styles.pathContainer}>
-        <Text style={styles.pathLabel}>경로:</Text>
-        <Text style={styles.pathText} numberOfLines={1}>
+      <View style={[styles.pathContainer, { backgroundColor: colors.surfaceTertiary, borderBottomColor: colors.border }]}>
+        <Text style={[styles.pathLabel, { color: colors.primary }]}>경로:</Text>
+        <Text style={[styles.pathText, { color: colors.textSecondary }]} numberOfLines={1}>
           {rootPath}
         </Text>
       </View>
@@ -599,7 +604,7 @@ export default function FilesScreen() {
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>파일이 없습니다</Text>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>파일이 없습니다</Text>
           </View>
         )}
       </ScrollView>
@@ -612,19 +617,20 @@ export default function FilesScreen() {
         onRequestClose={() => setIsCreateModalVisible(false)}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.modalOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+          <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               {createType === 'folder' ? '📁 새 폴더' : '📄 새 파일'}
             </Text>
             {createPath ? (
-              <Text style={styles.modalSubtitle}>위치: {createPath}/</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>위치: {createPath}/</Text>
             ) : null}
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: colors.border, color: colors.textPrimary }]}
               placeholder="이름 입력"
+              placeholderTextColor={colors.textTertiary}
               value={newItemName}
               onChangeText={setNewItemName}
               autoFocus
@@ -636,13 +642,13 @@ export default function FilesScreen() {
                 style={styles.modalButton}
                 onPress={() => setIsCreateModalVisible(false)}
               >
-                <Text style={styles.modalButtonText}>취소</Text>
+                <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
                 onPress={handleCreate}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
+                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary, { color: colors.textOnPrimary }]}>
                   만들기
                 </Text>
               </TouchableOpacity>
@@ -659,14 +665,15 @@ export default function FilesScreen() {
         onRequestClose={() => setIsRenameModalVisible(false)}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.modalOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>✏️ 이름 변경</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>✏️ 이름 변경</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: colors.border, color: colors.textPrimary }]}
               placeholder="새 이름 입력"
+              placeholderTextColor={colors.textTertiary}
               value={newItemName}
               onChangeText={setNewItemName}
               autoFocus
@@ -678,13 +685,13 @@ export default function FilesScreen() {
                 style={styles.modalButton}
                 onPress={() => setIsRenameModalVisible(false)}
               >
-                <Text style={styles.modalButtonText}>취소</Text>
+                <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
                 onPress={handleRename}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
+                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary, { color: colors.textOnPrimary }]}>
                   변경
                 </Text>
               </TouchableOpacity>
@@ -709,46 +716,46 @@ export default function FilesScreen() {
         onRequestClose={() => setIsOptionModalVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.modalOverlay }]}
           activeOpacity={1}
           onPress={() => setIsOptionModalVisible(false)}
         >
-          <View style={styles.optionModalContent}>
-            <Text style={styles.optionModalTitle}>
+          <View style={[styles.optionModalContent, { backgroundColor: colors.modalBackground }]}>
+            <Text style={[styles.optionModalTitle, { color: colors.textPrimary, borderBottomColor: colors.borderLight }]}>
               {selectedItem?.isDirectory ? '📁' : '📄'} {selectedItem?.name}
             </Text>
 
             {/* 폴더일 때만 "여기에 새로 만들기" 표시 */}
             {selectedItem?.isDirectory && (
               <TouchableOpacity
-                style={styles.optionItem}
+                style={[styles.optionItem, { borderBottomColor: colors.borderLight }]}
                 onPress={handleOptionCreateInFolder}
               >
-                <Text style={styles.optionText}>➕ 여기에 새로 만들기</Text>
+                <Text style={[styles.optionText, { color: colors.textPrimary }]}>➕ 여기에 새로 만들기</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, { borderBottomColor: colors.borderLight }]}
               onPress={handleOptionRename}
             >
-              <Text style={styles.optionText}>✏️ 이름 변경</Text>
+              <Text style={[styles.optionText, { color: colors.textPrimary }]}>✏️ 이름 변경</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, { borderBottomColor: colors.borderLight }]}
               onPress={handleOptionDelete}
             >
-              <Text style={[styles.optionText, styles.optionTextDanger]}>
+              <Text style={[styles.optionText, { color: colors.danger }]}>
                 🗑️ 삭제
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.optionItem, styles.optionItemCancel]}
+              style={[styles.optionItem, styles.optionItemCancel, { backgroundColor: colors.surfaceSecondary }]}
               onPress={() => setIsOptionModalVisible(false)}
             >
-              <Text style={styles.optionTextCancel}>취소</Text>
+              <Text style={[styles.optionTextCancel, { color: colors.textSecondary }]}>취소</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -760,13 +767,11 @@ export default function FilesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
     padding: 20,
   },
   header: {
@@ -775,14 +780,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   refreshButton: {
     padding: 8,
@@ -795,20 +797,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#e8f4ff',
     borderBottomWidth: 1,
-    borderBottomColor: '#d0e8ff',
   },
   pathLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#007AFF',
     marginRight: 8,
   },
   pathText: {
     flex: 1,
     fontSize: 12,
-    color: '#555',
     fontFamily: 'monospace',
   },
   fileList: {
@@ -817,7 +815,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
   },
   errorIcon: {
     fontSize: 48,
@@ -825,18 +822,15 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#007AFF',
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -852,7 +846,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
   },
   // 헤더 버튼 그룹
   headerButtons: {
@@ -875,13 +868,11 @@ const styles = StyleSheet.create({
   // 모달 스타일
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     width: '100%',
@@ -890,20 +881,17 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#666',
     marginBottom: 12,
     textAlign: 'center',
     fontFamily: 'monospace',
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -920,20 +908,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
   },
-  modalButtonPrimary: {
-    backgroundColor: '#007AFF',
-  },
   modalButtonText: {
     fontSize: 16,
-    color: '#666',
   },
   modalButtonTextPrimary: {
-    color: '#fff',
     fontWeight: '600',
   },
   // 옵션 모달 스타일
   optionModalContent: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     width: '100%',
     maxWidth: 300,
@@ -942,33 +924,24 @@ const styles = StyleSheet.create({
   optionModalTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     textAlign: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   optionItem: {
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   optionItemCancel: {
-    backgroundColor: '#f8f8f8',
     borderBottomWidth: 0,
   },
   optionText: {
     fontSize: 16,
-    color: '#333',
     textAlign: 'center',
-  },
-  optionTextDanger: {
-    color: '#FF3B30',
   },
   optionTextCancel: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
   },
 });

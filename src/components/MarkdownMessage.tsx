@@ -1,19 +1,23 @@
 /**
  * 마크다운 메시지 컴포넌트
  * AI 응답 메시지를 마크다운으로 렌더링
+ * 테마 기반 스타일 적용
  */
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Linking } from "react-native";
+import { View, Text, Platform, Linking } from "react-native";
 import Markdown from "react-native-markdown-display";
 import CodeBlock from "./CodeBlock";
-import { markdownStyles } from "../styles/markdownStyles";
+import { useTheme, createMarkdownStyles } from "../theme";
 
 interface MarkdownMessageProps {
   content: string; // 마크다운 텍스트
   isStreaming?: boolean; // 스트리밍 중 여부
+  fontSize?: number; // 사용자 설정 글꼴 크기
 }
 
-function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
+function MarkdownMessage({ content, isStreaming, fontSize }: MarkdownMessageProps) {
+  const { colors } = useTheme();
+
   // 스트리밍 중 불완전한 코드 블록 처리
   const safeContent = useMemo(() => {
     try {
@@ -31,6 +35,11 @@ function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
       return content;
     }
   }, [content]);
+
+  // 테마 기반 마크다운 스타일 생성
+  const themedMarkdownStyles = useMemo(() => {
+    return createMarkdownStyles(colors, fontSize);
+  }, [colors, fontSize]);
 
   // 커스텀 렌더링 규칙
   const rules = useMemo(
@@ -59,7 +68,7 @@ function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
         }
       },
 
-      // 인라인 코드 (`)
+      // 인라인 코드 (`) - 테마 색상 기반
       code_inline: (
         node: any,
         _children: any,
@@ -67,12 +76,20 @@ function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
         _styles: any,
         inheritedStyles?: any
       ) => (
-        <Text key={node.key} style={markdownStyles.code_inline}>
+        <Text key={node.key} style={{
+          backgroundColor: colors.inlineCodeBackground,
+          color: colors.inlineCodeText,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+          fontSize: 14,
+        }}>
           {node.content}
         </Text>
       ),
     }),
-    []
+    [colors]
   );
 
   // 링크 클릭 핸들러
@@ -90,9 +107,9 @@ function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
 
   // 마크다운 렌더링
   return (
-    <View style={styles.container}>
+    <View>
       <Markdown
-        style={markdownStyles}
+        style={themedMarkdownStyles}
         rules={rules}
         onLinkPress={handleLinkPress}
         mergeStyle={true}
@@ -100,27 +117,11 @@ function MarkdownMessage({ content, isStreaming }: MarkdownMessageProps) {
         {safeContent}
       </Markdown>
 
-      {/* 스트리밍 커서 */}
-      {isStreaming && <Text style={styles.cursor}>▌</Text>}
+      {/* 스트리밍 커서 - 테마 색상 사용 */}
+      {isStreaming && <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold' }}>▌</Text>}
     </View>
   );
 }
 
 // memo 다시 적용 - content나 isStreaming이 변경되지 않으면 리렌더링 방지
 export default React.memo(MarkdownMessage);
-
-const styles = StyleSheet.create({
-  container: {
-    // flexShrink 제거 - 다른 메시지 추가 시 크기 변경 방지
-  },
-  cursor: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  fallbackText: {
-    color: "#333333",
-    fontSize: 16,
-    lineHeight: 24,
-  },
-});

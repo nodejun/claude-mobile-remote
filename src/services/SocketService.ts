@@ -3,6 +3,7 @@
  * PC Agent와의 WebSocket 통신 담당
  */
 import { io, Socket } from 'socket.io-client';
+import { storageService } from './StorageService';
 
 // 연결 상태 타입
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -50,6 +51,9 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ Socket 연결 성공:', this.socket?.id);
       this.notifyStatusChange('connected');
+
+      // 연결 성공한 서버 URL을 AsyncStorage에 저장
+      storageService.addRecentServer(serverUrl);
 
       // 기존에 등록된 리스너들을 새 소켓에 다시 등록
       this.reattachListeners();
