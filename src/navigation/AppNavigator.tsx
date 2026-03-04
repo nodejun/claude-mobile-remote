@@ -11,7 +11,8 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Platform } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 
 import type { RootStackParamList, MainTabParamList } from './types';
 import {
@@ -44,9 +45,22 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.tabBarActive,
         tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: -2,
+        },
         tabBarStyle: {
           backgroundColor: colors.tabBarBackground,
           borderTopColor: colors.tabBarBorder,
+          height: Platform.OS === 'ios' ? 88 : 60,
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: colors.shadowOpacity,
+          shadowRadius: 8,
+          elevation: 8,
         },
       }}
     >
@@ -55,8 +69,8 @@ function MainTabs() {
         component={ChatScreen}
         options={{
           tabBarLabel: '채팅',
-          tabBarIcon: () => (
-            <Text style={{ fontSize: 20 }}>💬</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="message-circle" size={size} color={color} />
           ),
         }}
       />
@@ -65,8 +79,8 @@ function MainTabs() {
         component={FilesScreen}
         options={{
           tabBarLabel: '파일',
-          tabBarIcon: () => (
-            <Text style={{ fontSize: 20 }}>📁</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="folder" size={size} color={color} />
           ),
         }}
       />
@@ -75,8 +89,8 @@ function MainTabs() {
         component={ChangesScreen}
         options={{
           tabBarLabel: '변경',
-          tabBarIcon: () => (
-            <Text style={{ fontSize: 20 }}>📝</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="git-commit" size={size} color={color} />
           ),
         }}
       />
@@ -85,8 +99,8 @@ function MainTabs() {
         component={SettingsScreen}
         options={{
           tabBarLabel: '설정',
-          tabBarIcon: () => (
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="settings" size={size} color={color} />
           ),
         }}
       />
@@ -97,17 +111,44 @@ function MainTabs() {
 /**
  * 루트 스택 네비게이터
  * 연결 상태에 따라 화면 전환
+ *
+ * 깜빡임 방지 전략:
+ * 1. screenOptions.contentStyle → 모든 스택 화면의 기본 배경색을 테마에 맞게 설정
+ *    (네이티브 컨테이너 뷰에 즉시 적용되어, React 렌더링 전에 올바른 배경이 보임)
+ * 2. FileViewer → 코드 에디터라 항상 다크(#1e1e1e)로 고정
+ * 3. ChangeDetail → 테마 배경과 동일하게 설정 (colors.background)
+ * 4. animation: 'fade' → 슬라이드 대신 페이드로 중간 빈 틈 최소화
  */
 function RootNavigator() {
   const { isConnected } = useConnection();
+  const { colors } = useTheme();
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       {isConnected ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="FileViewer" component={FileViewerScreen} />
-          <Stack.Screen name="ChangeDetail" component={ChangeDetailScreen} />
+          <Stack.Screen
+            name="FileViewer"
+            component={FileViewerScreen}
+            options={{
+              contentStyle: { backgroundColor: '#1e1e1e' },
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name="ChangeDetail"
+            component={ChangeDetailScreen}
+            options={{
+              contentStyle: { backgroundColor: colors.background },
+              animation: 'fade',
+            }}
+          />
         </>
       ) : (
         <Stack.Screen name="Connection" component={ConnectionScreen} />
