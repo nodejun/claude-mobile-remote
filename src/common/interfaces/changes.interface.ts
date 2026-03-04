@@ -64,3 +64,20 @@ export interface ChangeActionResult {
   filePath?: string;
   error?: string;
 }
+
+/**
+ * 변경 삭제 요청 (개별 또는 일괄)
+ */
+export interface DeleteChangePayload {
+  changeId?: string; // 개별 삭제 시
+  deleteAll?: boolean; // 처리 완료된 항목 일괄 삭제 시
+}
+
+/**
+ * 변경 삭제 결과
+ */
+export interface DeleteChangeResult {
+  success: boolean;
+  deletedCount: number;
+  error?: string;
+}

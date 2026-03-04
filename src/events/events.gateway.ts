@@ -12,12 +12,16 @@ import { SessionService } from './session.service';
 import { FileService } from './file.service';
 import { ClaudeService } from './claude.service';
 import { ChangesService } from './changes.service';
+import { SignalingService } from '../signaling/signaling.service';
 import type {
   ClaudeResponse,
   ClaudeStreamEventResponse,
   ClaudeUserResponse,
 } from '#interfaces/claude.interface';
-import type { ChangeActionPayload } from '#interfaces/changes.interface';
+import type {
+  ChangeActionPayload,
+  DeleteChangePayload,
+} from '#interfaces/changes.interface';
 import type {
   FileOperationRequest,
   SearchRequest,
@@ -41,6 +45,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly fileService: FileService,
     private readonly claudeService: ClaudeService,
     private readonly changesService: ChangesService,
+    private readonly signalingService: SignalingService,
   ) {}
 
   /**
@@ -65,6 +70,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('ping')
   handlePing(_client: Socket) {
     return { event: 'pong', data: { timestamp: Date.now() } };
+  }
+
+  /**
+   * 페어링 정보 조회
+   * 모바일 앱이 연결 후 현재 PC의 페어링 코드/IP/포트 확인용
+   */
+  @SubscribeMessage('get_pair_info')
+  handleGetPairInfo(_client: Socket) {
+    const pairInfo = this.signalingService.getPairInfo();
+    return { event: 'pair_info', data: pairInfo };
   }
 
   /**
@@ -489,7 +504,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const session = this.sessionService.getSession(client.id);
           if (session) {
             const change = this.changesService.trackFromToolUse(
-              client.id,
               session.projectPath,
               userResponse.tool_use_result,
             );
@@ -525,7 +539,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage('get_changes')
   handleGetChanges(client: Socket) {
-    const result = this.changesService.getChanges(client.id);
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return {
+        event: 'changes_list',
+        data: { changes: [], totalCount: 0, pendingCount: 0 },
+      };
+    }
+
+    const result = this.changesService.getChanges(session.projectPath);
     return { event: 'changes_list', data: result };
   }
 
@@ -541,7 +563,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
     }
 
-    const change = this.changesService.getChange(client.id, payload.changeId);
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return { event: 'error', data: { message: 'No session found' } };
+    }
+
+    const change = this.changesService.getChange(
+      session.projectPath,
+      payload.changeId,
+    );
     if (!change) {
       return {
         event: 'error',
@@ -564,8 +594,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
     }
 
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return { event: 'error', data: { message: 'No session found' } };
+    }
+
     const result = this.changesService.approveChange(
-      client.id,
+      session.projectPath,
       payload.changeId,
     );
     return { event: 'change_approved', data: result };
@@ -583,10 +618,48 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
     }
 
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return { event: 'error', data: { message: 'No session found' } };
+    }
+
     const result = this.changesService.rejectChange(
-      client.id,
+      session.projectPath,
       payload.changeId,
     );
     return { event: 'change_rejected', data: result };
+  }
+
+  /**
+   * 변경사항 삭제 (개별 또는 처리 완료 일괄)
+   */
+  @SubscribeMessage('delete_change')
+  handleDeleteChange(client: Socket, payload: DeleteChangePayload) {
+    const session = this.sessionService.getSession(client.id);
+    if (!session) {
+      return { event: 'error', data: { message: 'No session found' } };
+    }
+
+    // 처리 완료 항목 일괄 삭제
+    if (payload?.deleteAll) {
+      const result = this.changesService.deleteResolvedChanges(
+        session.projectPath,
+      );
+      return { event: 'change_deleted', data: result };
+    }
+
+    // 개별 삭제
+    if (!payload?.changeId) {
+      return {
+        event: 'error',
+        data: { message: 'Change ID or deleteAll flag is required' },
+      };
+    }
+
+    const result = this.changesService.deleteChange(
+      session.projectPath,
+      payload.changeId,
+    );
+    return { event: 'change_deleted', data: result };
   }
 }
