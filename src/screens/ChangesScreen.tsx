@@ -15,7 +15,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useConnection } from '../hooks';
@@ -98,6 +99,62 @@ export default function ChangesScreen() {
   }, [fetchChanges]);
 
   /**
+   * 개별 변경사항 삭제 (승인/거부 완료 항목만)
+   */
+  const handleDelete = useCallback((changeId: string, filePath: string) => {
+    Alert.alert(
+      '변경사항 삭제',
+      `"${filePath}" 변경 기록을 삭제하시겠습니까?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await socketService.deleteChange(changeId);
+            if (result.success) {
+              fetchChanges();
+            } else {
+              setError(result.error || '삭제 실패');
+            }
+          },
+        },
+      ]
+    );
+  }, [fetchChanges]);
+
+  /**
+   * 처리 완료 항목 일괄 삭제
+   */
+  const handleDeleteResolved = useCallback(() => {
+    const resolvedCount = changes.filter(
+      (c) => c.status === 'approved' || c.status === 'rejected'
+    ).length;
+
+    if (resolvedCount === 0) return;
+
+    Alert.alert(
+      '완료 항목 정리',
+      `처리 완료된 ${resolvedCount}개의 변경 기록을 삭제하시겠습니까?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await socketService.deleteChange(undefined, true);
+            if (result.success) {
+              fetchChanges();
+            } else {
+              setError(result.error || '삭제 실패');
+            }
+          },
+        },
+      ]
+    );
+  }, [changes, fetchChanges]);
+
+  /**
    * 새로고침
    */
   const handleRefresh = useCallback(() => {
@@ -106,18 +163,18 @@ export default function ChangesScreen() {
   }, [fetchChanges]);
 
   /**
-   * 변경 타입에 따른 아이콘
+   * 변경 타입에 따른 아이콘 정보 (Feather 아이콘)
    */
-  const getChangeIcon = (type: FileChange['type']) => {
+  const getChangeIconInfo = (type: FileChange['type']): { name: string; color: string } => {
     switch (type) {
       case 'create':
-        return '🟢';
+        return { name: 'plus-circle', color: colors.success };
       case 'edit':
-        return '🟡';
+        return { name: 'edit', color: colors.warning };
       case 'delete':
-        return '🔴';
+        return { name: 'minus-circle', color: colors.danger };
       default:
-        return '📄';
+        return { name: 'file', color: colors.textSecondary };
     }
   };
 
@@ -201,16 +258,12 @@ export default function ChangesScreen() {
     return `${diffDay}일 전`;
   };
 
-  // 소켓 이벤트 리스너
+  // 소켓 이벤트 리스너 (컴포넌트 생명주기)
   useEffect(() => {
     if (!isConnected) {
       setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    fetchChanges();
 
     // 변경 목록 응답
     const unsubscribeList = socketService.on<ChangesListResult>(
@@ -242,15 +295,23 @@ export default function ChangesScreen() {
       }
     );
 
-    // 승인/거부 결과는 handleApprove, handleReject에서 직접 처리
-    // (Promise 방식으로 통일)
-
     return () => {
       unsubscribeList();
       unsubscribeChanged();
       unsubscribeError();
     };
   }, [isConnected, fetchChanges]);
+
+  // 화면 포커스 시 데이터 새로고침 (탭 전환, 뒤로가기 등)
+  useFocusEffect(
+    useCallback(() => {
+      if (isConnected) {
+        setIsLoading(true);
+        setError(null);
+        fetchChanges();
+      }
+    }, [isConnected, fetchChanges])
+  );
 
   /**
    * 아이템 확장/축소 토글
@@ -295,6 +356,7 @@ export default function ChangesScreen() {
     const isPending = item.status === 'pending';
     const isExpanded = expandedId === item.id;
     const hasDiff = item.hunks && item.hunks.length > 0;
+    const iconInfo = getChangeIconInfo(item.type);
 
     return (
       <View style={[styles.changeItem, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
@@ -306,7 +368,7 @@ export default function ChangesScreen() {
             onPress={() => toggleExpand(item.id)}
             activeOpacity={0.7}
           >
-            <Text style={styles.changeIcon}>{getChangeIcon(item.type)}</Text>
+            <Feather name={iconInfo.name as any} size={20} color={iconInfo.color} style={{ marginRight: 10 }} />
             <View style={styles.changeInfo}>
               <Text style={[styles.filePath, { color: colors.textHeading }]} numberOfLines={1}>
                 {item.filePath}
@@ -324,7 +386,7 @@ export default function ChangesScreen() {
                 <Text style={[styles.changeTime, { color: colors.textTertiary }]}>{formatTime(item.timestamp)}</Text>
               </View>
             </View>
-            <Text style={[styles.expandIcon, { color: colors.textTertiary }]}>{isExpanded ? '▼' : '▶'}</Text>
+            <Feather name={isExpanded ? "chevron-down" : "chevron-right"} size={16} color={colors.textTertiary} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
 
           {/* 오른쪽: 전체 보기 버튼 */}
@@ -333,7 +395,7 @@ export default function ChangesScreen() {
             onPress={() => handleViewDetail(item)}
             activeOpacity={0.7}
           >
-            <Text style={styles.viewDetailText}>↗️</Text>
+            <Feather name="external-link" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -422,9 +484,9 @@ export default function ChangesScreen() {
           </View>
         )}
 
-        {/* 처리 완료 상태 표시 */}
+        {/* 처리 완료 상태 표시 + 삭제 버튼 */}
         {!isPending && (
-          <View style={styles.statusBadge}>
+          <View style={styles.statusRow}>
             <Text
               style={[
                 styles.statusText,
@@ -435,6 +497,13 @@ export default function ChangesScreen() {
             >
               {item.status === 'approved' ? '✓ 승인됨' : '✕ 거부됨'}
             </Text>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDelete(item.id, item.filePath)}
+              activeOpacity={0.6}
+            >
+              <Feather name="trash-2" size={14} color={colors.textTertiary} />
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -445,7 +514,7 @@ export default function ChangesScreen() {
   if (!isConnected) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Text style={styles.disconnectedIcon}>🔌</Text>
+        <Feather name="wifi-off" size={48} color={colors.textTertiary} style={{ marginBottom: 12 }} />
         <Text style={[styles.disconnectedText, { color: colors.textSecondary }]}>PC에 연결되지 않았습니다</Text>
       </View>
     );
@@ -465,7 +534,7 @@ export default function ChangesScreen() {
   if (error) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Text style={styles.errorIcon}>❌</Text>
+        <Feather name="alert-circle" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
         <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
         <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={fetchChanges}>
           <Text style={[styles.retryText, { color: colors.textOnPrimary }]}>다시 시도</Text>
@@ -480,18 +549,31 @@ export default function ChangesScreen() {
       <View
         style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}
       >
-        <Text style={[styles.headerTitle, { color: colors.textHeading }]}>📝 변경사항</Text>
-        {pendingCount > 0 && (
-          <View style={[styles.badge, { backgroundColor: colors.danger }]}>
-            <Text style={[styles.badgeText, { color: colors.textOnPrimary }]}>{pendingCount}</Text>
-          </View>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerTitle, { color: colors.textHeading }]}>변경사항</Text>
+          {pendingCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+              <Text style={[styles.badgeText, { color: colors.textOnPrimary }]}>{pendingCount}</Text>
+            </View>
+          )}
+        </View>
+        {/* 처리 완료 항목이 있을 때만 정리 버튼 표시 */}
+        {changes.length > 0 && changes.some((c) => c.status !== 'pending') && (
+          <TouchableOpacity
+            style={styles.clearResolvedButton}
+            onPress={handleDeleteResolved}
+            activeOpacity={0.6}
+          >
+            <Feather name="trash-2" size={16} color={colors.textSecondary} />
+            <Text style={[styles.clearResolvedText, { color: colors.textSecondary }]}>정리</Text>
+          </TouchableOpacity>
         )}
       </View>
 
       {/* 변경 목록 */}
       {changes.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📭</Text>
+          <Feather name="inbox" size={48} color={colors.textTertiary} style={{ marginBottom: 12 }} />
           <Text style={[styles.emptyText, { color: colors.textPrimary }]}>변경사항이 없습니다</Text>
           <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Claude에게 파일 수정을 요청해보세요
@@ -529,9 +611,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
@@ -563,10 +650,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  changeIcon: {
-    fontSize: 20,
-    marginRight: 10,
-  },
+  // changeIcon 스타일 제거됨 - Feather 아이콘의 인라인 스타일로 대체
   changeInfo: {
     flex: 1,
   },
@@ -615,9 +699,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  statusBadge: {
+  statusRow: {
     marginTop: 8,
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statusText: {
     fontSize: 12,
@@ -626,15 +712,26 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
+  deleteButton: {
+    padding: 6,
+  },
+  clearResolvedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  clearResolvedText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
+  // emptyIcon 스타일 제거됨 - Feather 아이콘으로 대체
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
@@ -643,10 +740,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  disconnectedIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
+  // disconnectedIcon 스타일 제거됨 - Feather 아이콘으로 대체
   disconnectedText: {
     fontSize: 16,
   },
@@ -654,10 +748,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
+  // errorIcon 스타일 제거됨 - Feather 아이콘으로 대체
   errorText: {
     fontSize: 16,
     textAlign: 'center',
@@ -672,11 +763,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Diff 관련 스타일 (다크 테마 유지 - 변경 금지)
-  expandIcon: {
-    fontSize: 12,
-    marginLeft: 8,
-  },
+  // expandIcon 스타일 제거됨 - Feather 아이콘의 인라인 스타일로 대체
   // 헤더 레이아웃 스타일
   changeHeaderLeft: {
     flex: 1,
@@ -687,9 +774,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 16,
   },
-  viewDetailText: {
-    fontSize: 18,
-  },
+  // viewDetailText 스타일 제거됨 - Feather 아이콘으로 대체
   diffContainer: {
     marginTop: 12,
     backgroundColor: '#1E1E1E',

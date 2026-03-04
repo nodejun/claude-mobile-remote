@@ -258,6 +258,38 @@ class SocketService {
   }
 
   /**
+   * 변경사항 삭제 (개별 또는 처리 완료 일괄)
+   */
+  async deleteChange(
+    changeId?: string,
+    deleteAll?: boolean,
+  ): Promise<{ success: boolean; deletedCount: number; error?: string }> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, deletedCount: 0, error: '연결되지 않음' });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ success: false, deletedCount: 0, error: '응답 시간 초과' });
+      }, 10000);
+
+      this.socket.emit('delete_change', { changeId, deleteAll });
+      this.socket.once(
+        'change_deleted',
+        (data: { success: boolean; deletedCount: number; error?: string }) => {
+          clearTimeout(timeout);
+          resolve(data);
+        },
+      );
+      this.socket.once('error', (data: { message: string }) => {
+        clearTimeout(timeout);
+        resolve({ success: false, deletedCount: 0, error: data.message });
+      });
+    });
+  }
+
+  /**
    * 파일 저장
    */
   async saveFile(
