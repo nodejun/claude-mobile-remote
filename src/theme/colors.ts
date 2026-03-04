@@ -121,135 +121,135 @@ export interface ThemeColors {
 // ─── 라이트 팔레트 ──────────────────────────────────────
 
 export const lightColors: ThemeColors = {
-  // 배경/표면
-  background: '#f5f5f5',
-  surface: '#ffffff',
-  surfaceSecondary: '#f0f0f0',
-  surfaceTertiary: '#e8f4ff',
+  // 배경/표면 — 따뜻한 크림/베이지 톤
+  background: '#FAF9F6',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F3F0EA',
+  surfaceTertiary: '#F0E8DA',
 
-  // 텍스트
-  textPrimary: '#333333',
-  textSecondary: '#666666',
-  textTertiary: '#999999',
-  textHeading: '#1a1a1a',
-  textOnPrimary: '#ffffff',
+  // 텍스트 — 다크 브라운 계열
+  textPrimary: '#2D2A26',
+  textSecondary: '#6B6560',
+  textTertiary: '#9C9590',
+  textHeading: '#1F1C18',
+  textOnPrimary: '#FFFFFF',
 
-  // 테두리
-  border: '#e0e0e0',
-  borderLight: '#f0f0f0',
-  divider: '#e1e4e8',
+  // 테두리 — 웜 그레이
+  border: '#E0DCD5',
+  borderLight: '#EDE9E2',
+  divider: '#E0DCD5',
 
-  // 브랜드
-  primary: '#007AFF',
-  primaryLight: '#e8f4ff',
-  success: '#34C759',
-  danger: '#FF3B30',
-  warning: '#FF9500',
+  // 브랜드 — 앰버 브라운
+  primary: '#C4783E',
+  primaryLight: '#F5EDE4',
+  success: '#5A9E6F',
+  danger: '#D64545',
+  warning: '#E8A838',
 
-  // 채팅
-  chatUserBubble: '#007AFF',
+  // 채팅 — 앰버 버블
+  chatUserBubble: '#C4783E',
   chatAssistantBubble: '#FFFFFF',
-  chatInputBackground: '#F0F0F0',
-  chatTimestamp: 'rgba(0, 0, 0, 0.4)',
-  chatUserLabel: 'rgba(255, 255, 255, 0.8)',
+  chatInputBackground: '#F3F0EA',
+  chatTimestamp: 'rgba(45, 42, 38, 0.4)',
+  chatUserLabel: 'rgba(255, 255, 255, 0.85)',
 
-  // 탭바
+  // 탭바 — 앰버 액센트
   tabBarBackground: '#FFFFFF',
-  tabBarActive: '#007AFF',
-  tabBarInactive: '#8E8E93',
-  tabBarBorder: '#E5E5EA',
+  tabBarActive: '#C4783E',
+  tabBarInactive: '#A09A93',
+  tabBarBorder: '#E0DCD5',
 
   // 모달
   modalOverlay: 'rgba(0, 0, 0, 0.5)',
-  modalBackground: '#ffffff',
+  modalBackground: '#FFFFFF',
 
-  // 마크다운
-  inlineCodeBackground: '#f6f8fa',
-  inlineCodeText: '#e01e5a',
-  blockquoteBackground: '#f6f8fa',
-  tableHeaderBackground: '#f6f8fa',
-  tableBorder: '#e1e4e8',
+  // 마크다운 — 웜 베이지 배경
+  inlineCodeBackground: '#F3F0EA',
+  inlineCodeText: '#C4783E',
+  blockquoteBackground: '#F3F0EA',
+  tableHeaderBackground: '#F3F0EA',
+  tableBorder: '#E0DCD5',
 
   // 변경사항
-  approveBackground: '#E8F5E9',
-  approveText: '#2E7D32',
-  rejectBackground: '#FFEBEE',
-  rejectText: '#C62828',
+  approveBackground: '#E8F0E8',
+  approveText: '#3D7A4A',
+  rejectBackground: '#F5E0E0',
+  rejectText: '#C43A3A',
 
   // 상태
-  statusConnecting: '#FFA500',
-  statusConnected: '#34C759',
-  statusError: '#FF3B30',
-  statusDisconnected: '#8E8E93',
+  statusConnecting: '#E8A838',
+  statusConnected: '#5A9E6F',
+  statusError: '#D64545',
+  statusDisconnected: '#A09A93',
 
   // 그림자
   shadow: '#000000',
-  shadowOpacity: 0.05,
+  shadowOpacity: 0.08,
 };
 
 // ─── 다크 팔레트 ────────────────────────────────────────
 
 export const darkColors: ThemeColors = {
-  // 배경/표면
-  background: '#121212',
-  surface: '#1c1c1e',
-  surfaceSecondary: '#2c2c2e',
-  surfaceTertiary: '#1a2a3a',
+  // 배경/표면 — 웜 차콜 톤
+  background: '#1A1915',
+  surface: '#242219',
+  surfaceSecondary: '#302D25',
+  surfaceTertiary: '#2A2720',
 
-  // 텍스트
-  textPrimary: '#f5f5f5',
-  textSecondary: '#ababab',
-  textTertiary: '#636366',
-  textHeading: '#ffffff',
-  textOnPrimary: '#ffffff',
+  // 텍스트 — 웜 화이트 계열
+  textPrimary: '#F0EDE6',
+  textSecondary: '#B0AAA0',
+  textTertiary: '#706B62',
+  textHeading: '#F5F2EC',
+  textOnPrimary: '#FFFFFF',
 
-  // 테두리
-  border: '#38383a',
-  borderLight: '#2c2c2e',
-  divider: '#38383a',
+  // 테두리 — 웜 다크 그레이
+  border: '#3D3A32',
+  borderLight: '#302D25',
+  divider: '#3D3A32',
 
-  // 브랜드
-  primary: '#0A84FF',
-  primaryLight: '#0a3d6b',
-  success: '#30D158',
-  danger: '#FF453A',
-  warning: '#FF9F0A',
+  // 브랜드 — 밝은 앰버
+  primary: '#D4920B',
+  primaryLight: '#3D3020',
+  success: '#5A9E6F',
+  danger: '#D64545',
+  warning: '#E8A838',
 
-  // 채팅
-  chatUserBubble: '#0A84FF',
-  chatAssistantBubble: '#2c2c2e',
-  chatInputBackground: '#2c2c2e',
-  chatTimestamp: 'rgba(255, 255, 255, 0.4)',
-  chatUserLabel: 'rgba(255, 255, 255, 0.7)',
+  // 채팅 — 앰버 버블
+  chatUserBubble: '#D4920B',
+  chatAssistantBubble: '#302D25',
+  chatInputBackground: '#302D25',
+  chatTimestamp: 'rgba(240, 237, 230, 0.4)',
+  chatUserLabel: 'rgba(240, 237, 230, 0.7)',
 
-  // 탭바
-  tabBarBackground: '#1c1c1e',
-  tabBarActive: '#0A84FF',
-  tabBarInactive: '#636366',
-  tabBarBorder: '#38383a',
+  // 탭바 — 앰버 액센트
+  tabBarBackground: '#242219',
+  tabBarActive: '#D4920B',
+  tabBarInactive: '#706B62',
+  tabBarBorder: '#3D3A32',
 
   // 모달
   modalOverlay: 'rgba(0, 0, 0, 0.7)',
-  modalBackground: '#2c2c2e',
+  modalBackground: '#302D25',
 
-  // 마크다운
-  inlineCodeBackground: '#3a3a3c',
-  inlineCodeText: '#ff6b8a',
-  blockquoteBackground: '#2c2c2e',
-  tableHeaderBackground: '#2c2c2e',
-  tableBorder: '#48484a',
+  // 마크다운 — 웜 다크 배경
+  inlineCodeBackground: '#3D3A32',
+  inlineCodeText: '#E8A838',
+  blockquoteBackground: '#302D25',
+  tableHeaderBackground: '#302D25',
+  tableBorder: '#4A4640',
 
   // 변경사항
-  approveBackground: '#1b3a1b',
-  approveText: '#30D158',
-  rejectBackground: '#3a1b1b',
-  rejectText: '#FF453A',
+  approveBackground: '#1E3320',
+  approveText: '#5A9E6F',
+  rejectBackground: '#3A2020',
+  rejectText: '#D64545',
 
   // 상태
-  statusConnecting: '#FF9F0A',
-  statusConnected: '#30D158',
-  statusError: '#FF453A',
-  statusDisconnected: '#636366',
+  statusConnecting: '#E8A838',
+  statusConnected: '#5A9E6F',
+  statusError: '#D64545',
+  statusDisconnected: '#706B62',
 
   // 그림자
   shadow: '#000000',

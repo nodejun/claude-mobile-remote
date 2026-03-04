@@ -24,6 +24,7 @@ import {
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useConnection } from '../hooks';
@@ -273,7 +274,7 @@ export default function FilesScreen() {
     Alert.alert('새로 만들기 (루트)', '무엇을 만드시겠습니까?', [
       { text: '취소', style: 'cancel' },
       {
-        text: '📁 폴더',
+        text: '폴더',
         onPress: () => {
           setCreateType('folder');
           setCreatePath(''); // 루트에 생성
@@ -282,7 +283,7 @@ export default function FilesScreen() {
         },
       },
       {
-        text: '📄 파일',
+        text: '파일',
         onPress: () => {
           setCreateType('file');
           setCreatePath(''); // 루트에 생성
@@ -297,10 +298,10 @@ export default function FilesScreen() {
    * 특정 폴더에 새로 만들기
    */
   const handleCreateInFolder = useCallback((folder: FileEntry) => {
-    Alert.alert(`📁 ${folder.name}`, '무엇을 만드시겠습니까?', [
+    Alert.alert(folder.name, '무엇을 만드시겠습니까?', [
       { text: '취소', style: 'cancel' },
       {
-        text: '📁 폴더',
+        text: '폴더',
         onPress: () => {
           setCreateType('folder');
           setCreatePath(folder.relativePath); // 선택한 폴더에 생성
@@ -309,7 +310,7 @@ export default function FilesScreen() {
         },
       },
       {
-        text: '📄 파일',
+        text: '파일',
         onPress: () => {
           setCreateType('file');
           setCreatePath(folder.relativePath); // 선택한 폴더에 생성
@@ -527,7 +528,7 @@ export default function FilesScreen() {
   if (!isConnected) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Text style={styles.errorIcon}>🔌</Text>
+        <Feather name="wifi-off" size={48} color={colors.textTertiary} />
         <Text style={[styles.errorText, { color: colors.textSecondary }]}>서버에 연결되지 않았습니다</Text>
       </View>
     );
@@ -547,7 +548,7 @@ export default function FilesScreen() {
   if (error && files.length === 0) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Text style={styles.errorIcon}>❌</Text>
+        <Feather name="alert-circle" size={48} color={colors.danger} />
         <Text style={[styles.errorText, { color: colors.textSecondary }]}>{error}</Text>
         <TouchableOpacity
           style={[styles.retryButton, { backgroundColor: colors.primary }]}
@@ -563,19 +564,19 @@ export default function FilesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 헤더 */}
       <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>📁 파일 탐색기</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>파일 탐색기</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.searchButton}
             onPress={() => setIsSearchModalVisible(true)}
           >
-            <Text style={styles.searchButtonText}>🔍</Text>
+            <Feather name="search" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
-            <Text style={styles.addButtonText}>➕</Text>
+            <Feather name="plus" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-            <Text style={styles.refreshButtonText}>🔄</Text>
+            <Feather name="refresh-cw" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -603,7 +604,7 @@ export default function FilesScreen() {
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📭</Text>
+            <Feather name="inbox" size={48} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>파일이 없습니다</Text>
           </View>
         )}
@@ -622,7 +623,7 @@ export default function FilesScreen() {
         >
           <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-              {createType === 'folder' ? '📁 새 폴더' : '📄 새 파일'}
+              {createType === 'folder' ? '새 폴더' : '새 파일'}
             </Text>
             {createPath ? (
               <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>위치: {createPath}/</Text>
@@ -669,7 +670,7 @@ export default function FilesScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>✏️ 이름 변경</Text>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>이름 변경</Text>
             <TextInput
               style={[styles.modalInput, { borderColor: colors.border, color: colors.textPrimary }]}
               placeholder="새 이름 입력"
@@ -722,7 +723,7 @@ export default function FilesScreen() {
         >
           <View style={[styles.optionModalContent, { backgroundColor: colors.modalBackground }]}>
             <Text style={[styles.optionModalTitle, { color: colors.textPrimary, borderBottomColor: colors.borderLight }]}>
-              {selectedItem?.isDirectory ? '📁' : '📄'} {selectedItem?.name}
+              {selectedItem?.name}
             </Text>
 
             {/* 폴더일 때만 "여기에 새로 만들기" 표시 */}
@@ -731,7 +732,7 @@ export default function FilesScreen() {
                 style={[styles.optionItem, { borderBottomColor: colors.borderLight }]}
                 onPress={handleOptionCreateInFolder}
               >
-                <Text style={[styles.optionText, { color: colors.textPrimary }]}>➕ 여기에 새로 만들기</Text>
+                <Text style={[styles.optionText, { color: colors.textPrimary }]}>여기에 새로 만들기</Text>
               </TouchableOpacity>
             )}
 
@@ -739,7 +740,7 @@ export default function FilesScreen() {
               style={[styles.optionItem, { borderBottomColor: colors.borderLight }]}
               onPress={handleOptionRename}
             >
-              <Text style={[styles.optionText, { color: colors.textPrimary }]}>✏️ 이름 변경</Text>
+              <Text style={[styles.optionText, { color: colors.textPrimary }]}>이름 변경</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -747,7 +748,7 @@ export default function FilesScreen() {
               onPress={handleOptionDelete}
             >
               <Text style={[styles.optionText, { color: colors.danger }]}>
-                🗑️ 삭제
+                삭제
               </Text>
             </TouchableOpacity>
 

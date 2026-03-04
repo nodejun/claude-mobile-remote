@@ -16,10 +16,40 @@ import {
   StatusBar,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
 import { socketService, storageService } from "../services";
 import { MarkdownMessage } from "../components";
 import { useTheme } from "../theme";
 import type { ChatMessage } from "../types/chat";
+
+/**
+ * Claude 아바타 컴포넌트
+ * 앰버 원형 배경 + "C" 이니셜
+ */
+function ClaudeAvatar({ size = 32, color }: { size?: number; color: string }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontSize: size * 0.45,
+          fontWeight: "700",
+        }}
+      >
+        C
+      </Text>
+    </View>
+  );
+}
 
 export default function ChatScreen() {
   // 테마 색상
@@ -368,66 +398,76 @@ export default function ChatScreen() {
       const isStreaming =
         item.status === "streaming" || item.status === "sending";
 
+      // AI 메시지: 아바타 + 버블 래퍼
+      if (!isUser) {
+        return (
+          <View style={styles.assistantRow}>
+            <ClaudeAvatar size={28} color={colors.primary} />
+            <View
+              style={[
+                styles.messageBubble,
+                styles.assistantBubble,
+                { backgroundColor: colors.chatAssistantBubble },
+              ]}
+            >
+              <Text
+                style={[styles.roleLabel, styles.assistantLabel, { color: colors.primary }]}
+              >
+                Claude
+              </Text>
+              {item.status === "sending" && !item.content ? (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                  style={{ marginVertical: 8 }}
+                />
+              ) : (
+                <MarkdownMessage
+                  content={item.content}
+                  isStreaming={isStreaming}
+                  fontSize={chatFontSize}
+                />
+              )}
+              {!isStreaming && (
+                <Text style={[styles.timestamp, { color: colors.chatTimestamp }]}>
+                  {new Date(item.timestamp).toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      }
+
+      // 사용자 메시지
       return (
         <View
           style={[
             styles.messageBubble,
-            isUser
-              ? [styles.userBubble, { backgroundColor: colors.chatUserBubble }]
-              : [
-                  styles.assistantBubble,
-                  {
-                    backgroundColor: colors.chatAssistantBubble,
-                    shadowColor: colors.shadow,
-                    shadowOpacity: colors.shadowOpacity,
-                  },
-                ],
+            styles.userBubble,
+            { backgroundColor: colors.chatUserBubble },
           ]}
         >
-          {/* 역할 라벨 */}
+          <Text
+            style={[styles.roleLabel, styles.userLabel, { color: colors.chatUserLabel }]}
+          >
+            나
+          </Text>
           <Text
             style={[
-              styles.roleLabel,
-              isUser
-                ? [styles.userLabel, { color: colors.chatUserLabel }]
-                : [styles.assistantLabel, { color: colors.primary }],
+              styles.messageText,
+              styles.userText,
+              {
+                color: colors.textOnPrimary,
+                fontSize: chatFontSize,
+                lineHeight: Math.round(chatFontSize * 1.4),
+              },
             ]}
           >
-            {isUser ? "나" : "Claude"}
+            {item.content}
           </Text>
-
-          {/* 메시지 내용 */}
-          {item.status === "sending" && !item.content ? (
-            <ActivityIndicator
-              size="small"
-              color={colors.primary}
-              style={{ marginVertical: 8 }}
-            />
-          ) : isUser ? (
-            // 사용자 메시지: 평문 텍스트
-            <Text
-              style={[
-                styles.messageText,
-                styles.userText,
-                {
-                  color: colors.textOnPrimary,
-                  fontSize: chatFontSize,
-                  lineHeight: Math.round(chatFontSize * 1.4),
-                },
-              ]}
-            >
-              {item.content}
-            </Text>
-          ) : (
-            // AI 메시지: 마크다운 렌더링
-            <MarkdownMessage
-              content={item.content}
-              isStreaming={isStreaming}
-              fontSize={chatFontSize}
-            />
-          )}
-
-          {/* 시간 표시 (스트리밍 중이 아닐 때만) */}
           {!isStreaming && (
             <Text style={[styles.timestamp, { color: colors.chatTimestamp }]}>
               {new Date(item.timestamp).toLocaleTimeString("ko-KR", {
@@ -468,6 +508,12 @@ export default function ChatScreen() {
             onPress={handleEndSession}
             disabled={isLoading}
           >
+            <Feather
+              name="plus"
+              size={16}
+              color={isLoading ? colors.textTertiary : colors.primary}
+              style={{ marginRight: 4 }}
+            />
             <Text
               style={[
                 styles.newChatButtonText,
@@ -475,7 +521,7 @@ export default function ChatScreen() {
                 isLoading && { color: colors.textTertiary },
               ]}
             >
-              🔄 새 대화
+              새 대화
             </Text>
           </TouchableOpacity>
         </View>
@@ -490,8 +536,16 @@ export default function ChatScreen() {
       >
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              💬 Claude와 대화를 시작하세요!
+            <ClaudeAvatar size={64} color={colors.primary} />
+            <Text
+              style={[styles.welcomeTitle, { color: colors.textPrimary }]}
+            >
+              Claude에게 물어보세요
+            </Text>
+            <Text
+              style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}
+            >
+              코드 작성, 분석, 디버깅 등을 도와드립니다
             </Text>
           </View>
         ) : (
@@ -501,11 +555,15 @@ export default function ChatScreen() {
         )}
       </ScrollView>
 
-      {/* 입력 영역 */}
+      {/* 입력 영역 — pill 형태 + 원형 버튼 */}
       <View
         style={[
           styles.inputContainer,
-          { backgroundColor: colors.surface, borderTopColor: colors.border },
+          {
+            backgroundColor: colors.surface,
+            shadowColor: colors.shadow,
+            shadowOpacity: colors.shadowOpacity,
+          },
         ]}
       >
         <TextInput
@@ -514,6 +572,7 @@ export default function ChatScreen() {
             {
               backgroundColor: colors.chatInputBackground,
               color: colors.textPrimary,
+              borderColor: colors.borderLight,
             },
           ]}
           value={inputText}
@@ -525,19 +584,15 @@ export default function ChatScreen() {
           editable={!isLoading}
         />
         {isLoading ? (
-          // 로딩 중: 중단 버튼
+          // 로딩 중: 중단 버튼 (원형 + square 아이콘)
           <TouchableOpacity
             style={[styles.sendButton, { backgroundColor: colors.danger }]}
             onPress={handleCancel}
           >
-            <Text
-              style={[styles.sendButtonText, { color: colors.textOnPrimary }]}
-            >
-              중단
-            </Text>
+            <Feather name="square" size={18} color={colors.textOnPrimary} />
           </TouchableOpacity>
         ) : (
-          // 평상시: 전송 버튼
+          // 평상시: 전송 버튼 (원형 + arrow-up 아이콘)
           <TouchableOpacity
             style={[
               styles.sendButton,
@@ -547,11 +602,7 @@ export default function ChatScreen() {
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Text
-              style={[styles.sendButtonText, { color: colors.textOnPrimary }]}
-            >
-              전송
-            </Text>
+            <Feather name="arrow-up" size={20} color={colors.textOnPrimary} />
           </TouchableOpacity>
         )}
       </View>
@@ -573,13 +624,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   newChatButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   newChatButtonText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   // 스크롤 뷰
@@ -592,38 +645,53 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  // 빈 상태
+  // Welcome 화면 (메시지 없을 때)
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 100,
+    paddingTop: 120,
   },
-  emptyText: {
-    fontSize: 18,
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginTop: 16,
+  },
+  welcomeSubtitle: {
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  // AI 메시지 행 (아바타 + 버블)
+  assistantRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    gap: 8,
   },
 
   // 메시지 버블 (공통)
   messageBubble: {
     maxWidth: "85%",
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 12,
   },
 
   // 사용자 메시지 버블
   userBubble: {
     alignSelf: "flex-end",
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
 
   // AI 메시지 버블
   assistantBubble: {
+    flex: 1,
     alignSelf: "flex-start",
-    borderBottomLeftRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomLeftRadius: 6,
+    marginBottom: 0,
   },
 
   // 역할 라벨
@@ -649,34 +717,36 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
 
-  // 입력 영역
+  // 입력 영역 — 상단 보더 제거, 그림자로 대체
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     padding: 12,
-    borderTopWidth: 1,
+    paddingBottom: Platform.OS === "ios" ? 12 : 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 6,
+    elevation: 4,
   },
 
-  // 텍스트 입력
+  // 텍스트 입력 — pill 형태
   textInput: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 42,
     maxHeight: 120,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 24,
+    borderWidth: 1,
     fontSize: 16,
   },
 
-  // 전송 버튼
+  // 전송 버튼 — 원형
   sendButton: {
-    marginLeft: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  sendButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
+    marginLeft: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -7,6 +7,8 @@
  * - TextInput의 내장 스크롤 기능 사용 (scrollEnabled={true})
  * - 드래그 = 스크롤, 탭 = 커서 위치 지정
  * - Android: softwareKeyboardLayoutMode="pan"으로 키보드 자동 처리
+ *
+ * 코드 영역은 항상 다크 유지, UI 요소는 테마 시스템으로 전환
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -24,15 +26,18 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import CodeHighlighter from 'react-native-code-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { Feather } from '@expo/vector-icons';
 
 import type { RootStackParamList } from '../navigation/types';
 import { socketService, storageService } from '../services';
 import type { FileContentResult } from '../types/file';
+import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FileViewer'>;
 
 export default function FileViewerScreen({ navigation, route }: Props) {
   const { filePath, fileName } = route.params;
+  const { colors } = useTheme();
 
   // 파일 내용 상태
   const [content, setContent] = useState<string>('');
@@ -218,7 +223,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>파일 로딩 중...</Text>
       </View>
     );
@@ -228,9 +233,12 @@ export default function FileViewerScreen({ navigation, route }: Props) {
   if (error) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorIcon}>❌</Text>
+        <Feather name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: colors.primary }]}
+          onPress={handleGoBack}
+        >
           <Text style={styles.backButtonText}>돌아가기</Text>
         </TouchableOpacity>
       </View>
@@ -242,7 +250,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
       {/* 헤더 */}
       <View style={[styles.header, { paddingTop: (StatusBar.currentHeight || 24) + 8 }]}>
         <TouchableOpacity style={styles.backButtonSmall} onPress={handleGoBack}>
-          <Text style={styles.backButtonSmallText}>← 뒤로</Text>
+          <Feather name="arrow-left" size={18} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {fileName}
@@ -256,26 +264,35 @@ export default function FileViewerScreen({ navigation, route }: Props) {
               onPress={handleCancelEdit}
               disabled={isSaving}
             >
-              <Text style={styles.cancelButtonText}>✕ 취소</Text>
+              <View style={styles.buttonInner}>
+                <Feather name="x" size={14} color={colors.danger} style={{ marginRight: 4 }} />
+                <Text style={[styles.cancelButtonText, { color: colors.danger }]}>취소</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+              style={[styles.saveButton, { backgroundColor: colors.success }, isSaving && styles.saveButtonDisabled]}
               onPress={handleSave}
               disabled={isSaving}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.saveButtonText}>💾 저장</Text>
+                <View style={styles.buttonInner}>
+                  <Feather name="save" size={14} color="#fff" style={{ marginRight: 4 }} />
+                  <Text style={styles.saveButtonText}>저장</Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.headerButtons}>
             <TouchableOpacity style={styles.editButton} onPress={handleStartEdit}>
-              <Text style={styles.editButtonText}>✏️ 편집</Text>
+              <View style={styles.buttonInner}>
+                <Feather name="edit-2" size={14} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.editButtonText}>편집</Text>
+              </View>
             </TouchableOpacity>
-            <View style={styles.languageBadge}>
+            <View style={[styles.languageBadge, { backgroundColor: colors.primary }]}>
               <Text style={styles.languageText}>{language}</Text>
             </View>
           </View>
@@ -286,10 +303,10 @@ export default function FileViewerScreen({ navigation, route }: Props) {
       {fileInfo && (
         <View style={styles.infoContainer}>
           <Text style={styles.infoText}>
-            📁 {filePath} • {formatFileSize(fileInfo.size)} •{' '}
+            {filePath} • {formatFileSize(fileInfo.size)} •{' '}
             {formatDate(fileInfo.lastModified)}
             {isEditMode && editContent !== content && (
-              <Text style={styles.modifiedBadge}> • 수정됨</Text>
+              <Text style={[styles.modifiedBadge, { color: colors.warning }]}> • 수정됨</Text>
             )}
           </Text>
         </View>
@@ -310,7 +327,7 @@ export default function FileViewerScreen({ navigation, route }: Props) {
           autoCorrect={false}
           spellCheck={false}
           textAlignVertical="top"
-          selectionColor="#007AFF"
+          selectionColor={colors.primary}
           placeholder="코드를 입력하세요..."
           placeholderTextColor="#666"
         />
@@ -369,11 +386,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 8,
   },
-  backButtonSmallText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
   headerTitle: {
     flex: 1,
     fontSize: 16,
@@ -381,6 +393,11 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  /** 아이콘 + 텍스트를 가로로 정렬하는 래퍼 */
+  buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -409,19 +426,17 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 13,
-    color: '#FF3B30',
     fontWeight: '500',
   },
   saveButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#34C759',
     borderRadius: 4,
     minWidth: 70,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#2a5a2e',
+    opacity: 0.5,
   },
   saveButtonText: {
     fontSize: 13,
@@ -431,7 +446,6 @@ const styles = StyleSheet.create({
   languageBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#007AFF',
     borderRadius: 4,
   },
   languageText: {
@@ -452,7 +466,6 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   modifiedBadge: {
-    color: '#FF9500',
     fontWeight: '600',
   },
   codeContainer: {
@@ -494,11 +507,11 @@ const styles = StyleSheet.create({
     color: '#ccc',
     textAlign: 'center',
     marginBottom: 16,
+    marginTop: 12,
   },
   backButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#007AFF',
     borderRadius: 8,
   },
   backButtonText: {

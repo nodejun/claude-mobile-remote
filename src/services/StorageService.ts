@@ -28,6 +28,7 @@ const STORAGE_KEYS = {
   SETTINGS: '@app_settings',
   RECENT_SERVERS: '@recent_servers',
   CHAT_MESSAGES: '@chat_messages',
+  PAIR_CODE: '@paired_code',
 } as const;
 
 /** 최근 서버 URL 최대 저장 수 */
@@ -123,6 +124,46 @@ class StorageService {
       console.log('✅ 서버 기록 삭제:', url);
     } catch (error) {
       console.error('❌ 서버 기록 삭제 실패:', error);
+    }
+  }
+
+  // ═══ 페어링 코드 ═══
+
+  /**
+   * 마지막으로 성공한 페어링 코드 저장
+   * 다음 접속 시 자동 채우기용
+   */
+  async savePairCode(code: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.PAIR_CODE, code.toUpperCase());
+      console.log('✅ 페어링 코드 저장:', code);
+    } catch (error) {
+      console.error('❌ 페어링 코드 저장 실패:', error);
+    }
+  }
+
+  /**
+   * 저장된 페어링 코드 조회
+   * 없으면 null 반환
+   */
+  async getPairCode(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.PAIR_CODE);
+    } catch (error) {
+      console.error('❌ 페어링 코드 로드 실패:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 저장된 페어링 코드 삭제
+   */
+  async clearPairCode(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PAIR_CODE);
+      console.log('✅ 페어링 코드 삭제됨');
+    } catch (error) {
+      console.error('❌ 페어링 코드 삭제 실패:', error);
     }
   }
 

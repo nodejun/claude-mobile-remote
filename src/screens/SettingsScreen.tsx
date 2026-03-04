@@ -15,6 +15,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { storageService, type AppSettings } from '../services';
 import { useTheme } from '../theme';
 
@@ -115,7 +116,10 @@ export default function SettingsScreen() {
 
       {/* ═══ 연결 설정 ═══ */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>연결</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="wifi" size={14} color={colors.textTertiary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>연결</Text>
+        </View>
 
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, shadowOpacity: colors.shadowOpacity }]}>
           <Text style={[styles.cardLabel, { color: colors.textPrimary }]}>최근 연결 서버</Text>
@@ -125,16 +129,22 @@ export default function SettingsScreen() {
             recentServers.map((server, index) => (
               <View key={index} style={[styles.serverItem, { borderTopColor: colors.borderLight }]}>
                 <View style={styles.serverInfo}>
-                  <Text style={styles.serverIcon}>
-                    {index === 0 ? '🟢' : '⚪'}
-                  </Text>
+                  <View
+                    style={[
+                      styles.serverDot,
+                      {
+                        backgroundColor:
+                          index === 0 ? colors.statusConnected : colors.statusDisconnected,
+                      },
+                    ]}
+                  />
                   <Text style={[styles.serverUrl, { color: colors.textSecondary }]}>{server}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => handleRemoveServer(server)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={[styles.removeButton, { color: colors.textTertiary }]}>✕</Text>
+                  <Feather name="x" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
             ))
@@ -144,7 +154,10 @@ export default function SettingsScreen() {
 
       {/* ═══ 텍스트 ═══ */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>텍스트</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="type" size={14} color={colors.textTertiary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>텍스트</Text>
+        </View>
 
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, shadowOpacity: colors.shadowOpacity }]}>
           <Text style={[styles.cardLabel, { color: colors.textPrimary }]}>글꼴 크기</Text>
@@ -216,7 +229,10 @@ export default function SettingsScreen() {
 
       {/* ═══ 테마 ═══ */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>테마</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="sun" size={14} color={colors.textTertiary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>테마</Text>
+        </View>
 
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, shadowOpacity: colors.shadowOpacity }]}>
           <View style={styles.settingRow}>
@@ -238,7 +254,10 @@ export default function SettingsScreen() {
 
       {/* ═══ 데이터 ═══ */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>데이터</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="trash-2" size={14} color={colors.textTertiary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>데이터</Text>
+        </View>
 
         <TouchableOpacity
           style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, shadowOpacity: colors.shadowOpacity }]}
@@ -253,7 +272,10 @@ export default function SettingsScreen() {
 
       {/* ═══ 앱 정보 ═══ */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>앱 정보</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="info" size={14} color={colors.textTertiary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>앱 정보</Text>
+        </View>
 
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, shadowOpacity: colors.shadowOpacity }]}>
           <View style={styles.infoRow}>
@@ -300,12 +322,16 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 16,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
-    marginBottom: 8,
-    marginLeft: 4,
   },
 
   // 카드 (각 설정 항목)
@@ -340,17 +366,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  serverIcon: {
-    fontSize: 10,
+  serverDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 10,
   },
   serverUrl: {
     fontSize: 14,
     fontFamily: 'monospace',
-  },
-  removeButton: {
-    fontSize: 16,
-    paddingHorizontal: 4,
   },
 
   // 글꼴 크기 조절

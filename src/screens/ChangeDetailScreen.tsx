@@ -1,6 +1,8 @@
 /**
  * 변경 상세 화면
  * 파일 변경사항을 전체 화면으로 보여줌 (diff 또는 생성된 코드)
+ * 코드 영역(diff, syntax highlight)은 항상 다크 유지,
+ * 헤더/버튼/배지 등 UI 요소는 테마 시스템으로 전환
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -15,6 +17,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 
 import { socketService } from '../services';
 import { CodeBlock, DiffCodeLine } from '../components';
@@ -32,7 +35,7 @@ export default function ChangeDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<ChangeDetailRouteParams, 'ChangeDetail'>>();
   const { change } = route.params;
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   // 상태
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>(
@@ -65,17 +68,17 @@ export default function ChangeDetailScreen() {
     return langMap[ext] || 'plaintext';
   };
 
-  // 변경 타입 아이콘
-  const getChangeIcon = (type: string) => {
+  // 변경 타입 아이콘 이름 (Feather 아이콘)
+  const getChangeIconName = (type: string): keyof typeof Feather.glyphMap => {
     switch (type) {
       case 'create':
-        return '✨';
+        return 'plus-circle';
       case 'edit':
-        return '✏️';
+        return 'edit';
       case 'delete':
-        return '🗑️';
+        return 'trash-2';
       default:
-        return '📄';
+        return 'file';
     }
   };
 
@@ -201,7 +204,7 @@ export default function ChangeDetailScreen() {
     const result: MergedLine[] = [];
 
     // 디버깅: hunks 데이터 확인
-    console.log('🔍 ChangeDetail - hunks 데이터:', {
+    console.log('ChangeDetail - hunks 데이터:', {
       hasHunks: !!change.hunks,
       hunksLength: change.hunks?.length || 0,
       hunks: change.hunks,
@@ -211,7 +214,7 @@ export default function ChangeDetailScreen() {
 
     // hunks가 없으면 전체 파일을 컨텍스트로 표시
     if (!change.hunks || change.hunks.length === 0) {
-      console.log('⚠️ hunks가 없어서 전체 파일을 컨텍스트로 표시');
+      console.log('hunks가 없어서 전체 파일을 컨텍스트로 표시');
       return newLines.map((line, i) => ({
         type: 'context' as const,
         content: line,
@@ -314,32 +317,35 @@ export default function ChangeDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
 
       {/* 헤더 */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={[styles.backButtonText, { color: colors.primary }]}>← 뒤로</Text>
+          <Feather name="arrow-left" size={20} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerIcon}>{getChangeIcon(change.type)}</Text>
-          <Text style={styles.headerLabel}>{getChangeLabel(change.type)}</Text>
+          <Feather name={getChangeIconName(change.type)} size={20} color={colors.textOnPrimary} />
+          <Text style={[styles.headerLabel, { color: colors.textHeading }]}>{getChangeLabel(change.type)}</Text>
         </View>
       </View>
 
       {/* 파일 경로 */}
-      <View style={styles.filePathContainer}>
-        <Text style={styles.filePath}>{change.filePath}</Text>
+      <View style={[styles.filePathContainer, { backgroundColor: colors.surfaceSecondary }]}>
+        <Text style={[styles.filePath, { color: colors.textPrimary }]}>{change.filePath}</Text>
         <View style={styles.statsContainer}>
           {change.additions > 0 && (
-            <Text style={styles.additions}>+{change.additions}</Text>
+            <Text style={[styles.additions, { color: colors.success }]}>+{change.additions}</Text>
           )}
           {change.deletions > 0 && (
-            <Text style={styles.deletions}>-{change.deletions}</Text>
+            <Text style={[styles.deletions, { color: colors.danger }]}>-{change.deletions}</Text>
           )}
         </View>
       </View>
@@ -349,10 +355,23 @@ export default function ChangeDetailScreen() {
         <View
           style={[
             styles.statusBadge,
-            status === 'approved' ? styles.approvedBadge : styles.rejectedBadge,
+            {
+              backgroundColor: status === 'approved'
+                ? colors.approveBackground
+                : colors.rejectBackground,
+            },
           ]}
         >
-          <Text style={styles.statusText}>
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color: status === 'approved'
+                  ? colors.approveText
+                  : colors.rejectText,
+              },
+            ]}
+          >
             {status === 'approved' ? '✓ 승인됨' : '✗ 거부됨'}
           </Text>
         </View>
@@ -402,16 +421,16 @@ export default function ChangeDetailScreen() {
 
       {/* 승인/거부 버튼 (pending 상태만) */}
       {isPending && (
-        <View style={styles.actionButtons}>
+        <View style={[styles.actionButtons, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
+            style={[styles.actionButton, styles.rejectButton, { backgroundColor: colors.danger }]}
             onPress={handleReject}
             disabled={isProcessing}
           >
             <Text style={styles.rejectText}>✗ 거부</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton]}
+            style={[styles.actionButton, styles.approveButton, { backgroundColor: colors.success }]}
             onPress={handleApprove}
             disabled={isProcessing}
           >
@@ -426,7 +445,6 @@ export default function ChangeDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
     paddingTop: 20, // 상단 패딩 (StatusBar 영역)
   },
   header: {
@@ -436,13 +454,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#7B68EE',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -455,7 +471,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   headerLabel: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -465,11 +480,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#16213e',
   },
   filePath: {
     flex: 1,
-    color: '#E0E0E0',
     fontSize: 14,
     fontFamily: 'monospace',
   },
@@ -478,12 +491,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   additions: {
-    color: '#34C759',
     fontSize: 14,
     fontWeight: '600',
   },
   deletions: {
-    color: '#FF3B30',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -494,14 +505,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginVertical: 12,
   },
-  approvedBadge: {
-    backgroundColor: 'rgba(52, 199, 89, 0.2)',
-  },
-  rejectedBadge: {
-    backgroundColor: 'rgba(255, 59, 48, 0.2)',
-  },
+  approvedBadge: {},
+  rejectedBadge: {},
   statusText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -515,6 +521,7 @@ const styles = StyleSheet.create({
   horizontalScrollContent: {
     minWidth: '100%',
   },
+  // ─── 코드 영역 (항상 다크 유지) ───
   diffContainer: {
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
@@ -584,6 +591,14 @@ const styles = StyleSheet.create({
     color: '#6A6A6A',
     fontSize: 16,
   },
+  // 전체 파일 + 구문 강조 컨테이너 (DiffCodeLine 사용, 항상 다크)
+  fullFileContainer: {
+    backgroundColor: '#282c34', // atomOneDark 배경색과 일치
+    borderRadius: 8,
+    overflow: 'hidden',
+    paddingVertical: 4,
+  },
+  // ─── UI 요소 (테마 적용, 색상은 인라인으로) ───
   actionButtons: {
     position: 'absolute',
     bottom: 0,
@@ -592,9 +607,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     gap: 12,
-    backgroundColor: '#1a1a2e',
     borderTopWidth: 1,
-    borderTopColor: '#2d2d44',
   },
   actionButton: {
     flex: 1,
@@ -602,12 +615,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  approveButton: {
-    backgroundColor: '#34C759',
-  },
-  rejectButton: {
-    backgroundColor: '#FF3B30',
-  },
+  approveButton: {},
+  rejectButton: {},
   approveText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -617,12 +626,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  // 전체 파일 + 구문 강조 컨테이너 (DiffCodeLine 사용)
-  fullFileContainer: {
-    backgroundColor: '#282c34', // atomOneDark 배경색과 일치
-    borderRadius: 8,
-    overflow: 'hidden',
-    paddingVertical: 4,
   },
 });

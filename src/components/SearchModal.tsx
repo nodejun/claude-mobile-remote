@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { socketService } from '../services';
 import { useTheme } from '../theme';
 import type { SearchMatch } from '../types/file';
@@ -90,18 +91,28 @@ export default function SearchModal({
     [onFilePress, onFolderPress, handleClose]
   );
 
-  /**
-   * 파일 확장자에 따른 아이콘
-   */
-  const getIcon = (item: SearchMatch): string => {
-    if (item.isDirectory) return '📁';
+  /** 파일 아이콘 정보 (이름 + 색상) */
+  const getFileIcon = (item: SearchMatch): { name: string; color: string } => {
+    if (item.isDirectory) return { name: 'folder', color: colors.primary };
     const ext = item.name.split('.').pop()?.toLowerCase() || '';
-    const icons: Record<string, string> = {
-      ts: '📘', tsx: '⚛️', js: '📒', jsx: '⚛️',
-      py: '🐍', json: '⚙️', md: '📝', html: '🌐',
-      css: '🎨', yaml: '📐', yml: '📐',
+    const icons: Record<string, { name: string; color: string }> = {
+      ts: { name: 'file-text', color: '#3178C6' },
+      tsx: { name: 'code', color: '#61DAFB' },
+      jsx: { name: 'code', color: '#61DAFB' },
+      js: { name: 'file-text', color: '#F0DB4F' },
+      py: { name: 'terminal', color: '#3776AB' },
+      json: { name: 'settings', color: '#8C8C8C' },
+      md: { name: 'book-open', color: '#519ABA' },
+      html: { name: 'globe', color: '#E44D26' },
+      css: { name: 'hash', color: '#A259FF' },
+      scss: { name: 'hash', color: '#CD6799' },
+      yaml: { name: 'settings', color: '#CB171E' },
+      yml: { name: 'settings', color: '#CB171E' },
+      png: { name: 'image', color: '#FF6B9D' },
+      jpg: { name: 'image', color: '#FF6B9D' },
+      svg: { name: 'image', color: '#FFB13B' },
     };
-    return icons[ext] || '📄';
+    return icons[ext] || { name: 'file', color: '#8C8C8C' };
   };
 
   /**
@@ -116,7 +127,12 @@ export default function SearchModal({
       >
         {/* 파일 정보 */}
         <View style={styles.resultHeader}>
-          <Text style={styles.resultIcon}>{getIcon(item)}</Text>
+          <Feather
+            name={getFileIcon(item).name as any}
+            size={18}
+            color={getFileIcon(item).color}
+            style={styles.resultIcon}
+          />
           <View style={styles.resultInfo}>
             <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={1}>
               {item.name}
@@ -161,9 +177,12 @@ export default function SearchModal({
       >
         {/* 헤더 */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>🔍 파일 검색</Text>
+          <View style={styles.headerTitleRow}>
+            <Feather name="search" size={20} color={colors.textPrimary} style={{ marginRight: 8 }} />
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>파일 검색</Text>
+          </View>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Text style={[styles.closeButtonText, { color: colors.textSecondary }]}>✕</Text>
+            <Feather name="x" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -250,7 +269,7 @@ export default function SearchModal({
           </View>
         ) : hasSearched && results.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Text style={styles.emptyIcon}>🔍</Text>
+            <Feather name="search" size={48} color={colors.textTertiary} style={{ marginBottom: 12 }} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>검색 결과가 없습니다</Text>
           </View>
         ) : (
@@ -287,18 +306,19 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
+  headerTitleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   closeButton: {
     width: 32,
     height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 20,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   // 검색 타입 토글
   typeToggle: {
@@ -366,7 +386,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resultIcon: {
-    fontSize: 18,
     marginRight: 10,
   },
   resultInfo: {
@@ -415,10 +434,6 @@ const styles = StyleSheet.create({
   searchingText: {
     marginTop: 12,
     fontSize: 16,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
   },
   emptyText: {
     fontSize: 16,
