@@ -2,6 +2,27 @@
 
 > 모바일에서 PC의 Claude Code CLI를 원격 제어하는 앱
 
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![Expo](https://img.shields.io/badge/Expo-000020?style=flat-square&logo=expo&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=flat-square&logo=socket.io&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
+
+## 스크린샷
+
+<p align="center">
+  <img src="docs/screenshots/connection.jpg" width="250" alt="연결 화면" />
+  <img src="docs/screenshots/chat.jpg" width="250" alt="채팅 화면" />
+  <img src="docs/screenshots/pc-agent-tray.png" width="250" alt="PC Agent 시스템 트레이" />
+</p>
+<p align="center">
+  <em>연결 화면 &nbsp;|&nbsp; 채팅 화면 &nbsp;|&nbsp; PC Agent 시스템 트레이</em>
+</p>
+
+---
+
 ## 프로젝트 개요
 
 기존 원격 데스크톱(Chrome Remote Desktop, TeamViewer)은 화면 전체를 스트리밍하기 때문에 모바일에서 사용하기 불편합니다.
@@ -66,18 +87,6 @@ Claude Mobile Remote는 **텍스트만 주고받는 방식**으로, 모바일에
 
 ---
 
-## 기술 스택
-
-| 구성 요소 | 기술 |
-|-----------|------|
-| 모바일 앱 | React Native, Expo, TypeScript |
-| PC Agent | NestJS, TypeScript, socket.io, systray2 |
-| 시그널링 서버 | Cloudflare Workers, KV Storage |
-| 통신 | WebSocket (실시간), HTTPS (시그널링) |
-| 인스톨러 | Inno Setup |
-
----
-
 ## 프로젝트 구조
 
 ```
@@ -123,7 +132,7 @@ npm install
 npm run start:dev
 ```
 
-실행하면 페어링 코드가 콘솔에 표시됩니다.
+실행하면 페어링 코드가 시스템 트레이에 표시됩니다.
 
 ### 모바일 앱 실행
 
