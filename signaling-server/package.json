@@ -1,0 +1,15 @@
+{
+  "name": "claude-mobile-signaling",
+  "version": "1.0.0",
+  "description": "Claude Mobile Remote - 시그널링 서버 (Cloudflare Workers + KV)",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "wrangler": "^3.60.0"
+  }
+}

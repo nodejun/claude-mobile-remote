@@ -1,0 +1,17 @@
+# Claude Mobile Remote - 시그널링 서버
+# Cloudflare Workers + KV 설정
+
+name = "claude-mobile-signaling"
+main = "src/index.ts"
+compatibility_date = "2024-05-29"
+
+# KV 네임스페이스 바인딩
+# 배포 전 아래 명령어로 KV 생성 필요:
+#   wrangler kv namespace create PAIRS
+#   wrangler kv namespace create PAIRS --preview
+# 생성 후 출력된 id를 아래에 입력
+
+[[kv_namespaces]]
+binding = "PAIRS"
+id = "ae7181456f694d3e89a948d7f284fd60"
+preview_id = "4e3334d6f2a249608b6b92bd422dbe45"
