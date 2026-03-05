@@ -7,7 +7,7 @@
 ; ══════════════════════════════════════════════════════
 
 #define MyAppName "Claude Code Mobile Agent"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Claude Code Mobile"
 #define MyAppExeName "start-hidden.vbs"
 
@@ -51,8 +51,8 @@ Name: "{group}\{#MyAppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app
 Name: "{group}\{#MyAppName} 제거"; Filename: "{uninstallexe}"
 ; 바탕화면 바로가기 (선택)
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"; Tasks: desktopicon
-; 시작 프로그램 (선택) - Windows 설정에서 "Claude Code Mobile Agent"로 표시
-Name: "{userstartup}\Claude Code Mobile Agent"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; Tasks: startupicon
+; 시작 프로그램 (시작 폴더 방식 - 작업 관리자에는 "wscript"로 표시됨, 추후 커스텀 launcher.exe로 개선 예정)
+Name: "{userstartup}\{#MyAppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"; Tasks: startupicon
 
 [Run]
 ; 설치 완료 후 실행 옵션 (백그라운드로 시작)
@@ -62,3 +62,5 @@ Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingD
 ; 언인스톨 시 추가 정리 (런타임 생성 파일)
 Type: filesandordirs; Name: "{app}\*.log"
 Type: filesandordirs; Name: "{app}\.claude-changes.json"
+; homedir에 생성되는 변경 추적 파일도 정리
+Type: files; Name: "{%USERPROFILE}\.claude-changes.json"
