@@ -5,6 +5,11 @@
 /docs
 *.tsbuildinfo
 
+# installer build artifacts
+/installer/staging
+/installer/output
+/installer/*.zip
+
 # test scripts
 test-*.js
 
