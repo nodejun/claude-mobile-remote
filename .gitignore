@@ -9,6 +9,7 @@
 /installer/staging
 /installer/output
 /installer/*.zip
+/installer/_extract-node.ps1
 
 # test scripts
 test-*.js
