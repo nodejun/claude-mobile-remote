@@ -47,16 +47,16 @@ Source: "staging\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs creat
 
 [Icons]
 ; 시작 메뉴 바로가기 (wscript.exe로 VBScript 실행)
-Name: "{group}\{#MyAppName}"; Filename: "wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"
+Name: "{group}\{#MyAppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"
 Name: "{group}\{#MyAppName} 제거"; Filename: "{uninstallexe}"
 ; 바탕화면 바로가기 (선택)
-Name: "{autodesktop}\{#MyAppName}"; Filename: "wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"; Tasks: desktopicon
 ; 시작 프로그램 (선택) - Windows 설정에서 "Claude Code Mobile Agent"로 표시
-Name: "{userstartup}\Claude Code Mobile Agent"; Filename: "wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; Tasks: startupicon
+Name: "{userstartup}\Claude Code Mobile Agent"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; Tasks: startupicon
 
 [Run]
 ; 설치 완료 후 실행 옵션 (백그라운드로 시작)
-Filename: "wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; Description: "설치 후 바로 실행"; Flags: nowait postinstall skipifsilent
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\{#MyAppExeName}"""; WorkingDir: "{app}"; Description: "설치 후 바로 실행"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; 언인스톨 시 추가 정리 (런타임 생성 파일)
