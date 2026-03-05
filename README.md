@@ -12,14 +12,18 @@
 
 ## 스크린샷
 
-<p align="center">
-  <img src="docs/screenshots/connection.jpg" width="250" alt="연결 화면" />
-  <img src="docs/screenshots/chat.jpg" width="250" alt="채팅 화면" />
-  <img src="docs/screenshots/pc-agent-tray.png" width="250" alt="PC Agent 시스템 트레이" />
-</p>
-<p align="center">
-  <em>연결 화면 &nbsp;|&nbsp; 채팅 화면 &nbsp;|&nbsp; PC Agent 시스템 트레이</em>
-</p>
+### 모바일 앱
+
+| 연결 화면 | 채팅 화면 |
+|:---------:|:---------:|
+| <img src="docs/screenshots/connection.jpg" width="300" /> | <img src="docs/screenshots/chat.jpg" width="300" /> |
+| 페어링 코드로 PC Agent에 연결 | Claude에게 프롬프트 전송 및 응답 확인 |
+
+### PC Agent
+
+<img src="docs/screenshots/pc-agent-tray.png" width="300" />
+
+> 시스템 트레이에서 백그라운드로 실행되며, 페어링 코드와 연결 정보를 표시합니다.
 
 ---
 
