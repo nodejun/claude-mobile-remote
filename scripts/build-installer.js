@@ -229,6 +229,10 @@ async function main() {
         throw new Error('PowerShell 추출 후에도 node.exe가 없습니다.');
       }
     } catch (error) {
+      // 임시 스크립트 파일이 남아있으면 정리
+      if (fs.existsSync(psScriptPath)) {
+        fs.unlinkSync(psScriptPath);
+      }
       console.error('  node.exe 추출 실패:', error.message);
       console.log('  대안: 현재 시스템의 node.exe를 복사합니다.');
       const systemNode = execSync('where node', { encoding: 'utf-8' })
