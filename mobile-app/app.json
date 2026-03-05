@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Claude Code Mobile",
+    "slug": "claude-code-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF9F6"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.claudecodemobile.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#C4783E"
+      },
+      "package": "com.claudecodemobile.app",
+      "backgroundColor": "#1A1915",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "41958e24-6f4a-42b1-ac33-c8fa42e6fa34"
+      }
+    }
+  }
+}
