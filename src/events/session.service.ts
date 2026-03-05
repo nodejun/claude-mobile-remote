@@ -1,5 +1,6 @@
 import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
+import * as os from 'os';
 import type { IPty } from 'node-pty';
 
 import {
@@ -33,7 +34,7 @@ export class SessionService {
     const session: Session = {
       sessionId: uuidv4(),
       claudeProcess: null,
-      projectPath: options?.projectPath || process.cwd(),
+      projectPath: options?.projectPath || os.homedir(),
       isFirstPrompt: true,
     };
 
