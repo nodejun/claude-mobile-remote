@@ -198,10 +198,10 @@ async function main() {
 
     // zip에서 node.exe만 추출
     console.log('  node.exe 추출 중...');
+    const psScriptPath = path.join(INSTALLER_DIR, '_extract-node.ps1');
     try {
       // PowerShell 스크립트를 임시 파일로 저장 후 실행
       // (경로에 한글이 포함되면 인라인 명령이 인코딩 문제로 실패할 수 있음)
-      const psScriptPath = path.join(INSTALLER_DIR, '_extract-node.ps1');
       const psScript = [
         'Add-Type -AssemblyName System.IO.Compression.FileSystem',
         `$zip = [System.IO.Compression.ZipFile]::OpenRead("${nodeZipPath.replace(/\\/g, '\\\\')}")`,
